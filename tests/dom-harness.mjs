@@ -318,24 +318,49 @@ const seedResetMatch = code.match(/if \(target\.dataset\.seedReset !== undefined
 const seedResetBody = seedResetMatch ? seedResetMatch[1] : "";
 check("seed-reset ハンドラが取得できる", seedResetBody.length > 0);
 if (seedResetBody.length > 0) {
-  // fetch の位置 < removeItem の位置 (then の中で removeItem を呼ぶ)
+  // fetch の位置 < setItem の位置 (then の中で setItem する)
   const fetchIdx = seedResetBody.indexOf("fetch(");
-  const removeIdx = seedResetBody.indexOf("localStorage.removeItem");
+  const setItemIdx = seedResetBody.indexOf("localStorage.setItem(STORAGE_KEYS.factors");
   check(
-    "seed-reset で fetch が removeItem より先に書かれている",
-    fetchIdx >= 0 && removeIdx >= 0 && fetchIdx < removeIdx,
-    `fetchIdx=${fetchIdx} removeIdx=${removeIdx}`
+    "seed-reset で fetch が setItem より先に書かれている",
+    fetchIdx >= 0 && setItemIdx >= 0 && fetchIdx < setItemIdx,
+    `fetchIdx=${fetchIdx} setItemIdx=${setItemIdx}`
   );
-  // .catch の中で localStorage.removeItem を呼んでいない (失敗時にユーザーデータを消さない)
+  // .catch の中で localStorage を一切触らない & in-memory も触らない (fetch 失敗時は完全 no-op)
   const catchMatch = seedResetBody.match(/\.catch\(\(error\) => \{([\s\S]+?)\}\);/);
   const catchBody = catchMatch ? catchMatch[1] : "";
   check(
-    "seed-reset の catch で localStorage を変更しない",
-    catchBody.length === 0 || (!/localStorage\.removeItem/.test(catchBody) && !/localStorage\.setItem/.test(catchBody) && !/factors\s*=/.test(catchBody) && !/activities\s*=/.test(catchBody)),
+    "seed-reset の catch で localStorage / in-memory を変更しない",
+    catchBody.length > 0 && !/localStorage\.(removeItem|setItem)/.test(catchBody) && !/^\s*factors\s*=/m.test(catchBody) && !/^\s*activities\s*=/m.test(catchBody),
     catchBody.replace(/\s+/g, " ").slice(0, 200)
   );
   // 「ローカルデータは残されています」の文言がある
   check("seed-reset の catch でユーザーに「ローカルデータは残されています」と通知", /ローカルデータは残されています/.test(seedResetBody));
+  // setItem 後に getItem === で verify している（quota 超過などの保存失敗を検知）
+  check(
+    "seed-reset で setItem 後に read-back verify している",
+    /localStorage\.setItem\(STORAGE_KEYS\.factors[\s\S]{0,200}localStorage\.getItem\(STORAGE_KEYS\.factors\) !== factorsJson/.test(seedResetBody)
+  );
+  // 保存失敗時に prev 値で rollback している
+  check(
+    "seed-reset で保存失敗時に prev 値を rollback している",
+    /writeError[\s\S]{0,400}localStorage\.setItem\(STORAGE_KEYS\.factors, prevFactors\)/.test(seedResetBody) &&
+    /localStorage\.setItem\(STORAGE_KEYS\.activities, prevActivities\)/.test(seedResetBody)
+  );
+  // 保存失敗時のメッセージ
+  check(
+    "seed-reset で保存失敗時にユーザーに「元の状態に復元しました」と通知",
+    /元の状態に復元しました/.test(seedResetBody)
+  );
+  // 保存失敗時は in-memory factors / activities も置換しない（return で抜ける）
+  // → writeError ブロックの中で `factors =` が無いことを確認
+  const writeErrorBlockMatch = seedResetBody.match(/if \(writeError\) \{([\s\S]+?)\n\s+\}\s*\n\s+\/\/\s*ここまで来たら永続化成功/);
+  const writeErrorBlock = writeErrorBlockMatch ? writeErrorBlockMatch[1] : "";
+  check(
+    "seed-reset の writeError ブロック内で in-memory factors / activities を変更しない",
+    writeErrorBlock.length > 0 && !/^\s*factors\s*=/m.test(writeErrorBlock) && !/^\s*activities\s*=/m.test(writeErrorBlock),
+    writeErrorBlock.replace(/\s+/g, " ").slice(0, 200)
+  );
 }
 
 // ------- 結果 -------

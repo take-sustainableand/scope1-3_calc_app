@@ -122,7 +122,7 @@ check("renderSiteBreakdown が filteredActivities を使う", /function renderSi
 check("normalizeSettings が定義されている", /function normalizeSettings\(/.test(src));
 check("defaultSettings.period の初期値が「全期間」", /period: "全期間"/.test(src));
 check("data-clear-activities ハンドラが定義されている", /target\.dataset\.clearActivities/.test(src));
-check("data-seed-reset がシードに戻すボタンに進化（removeItem ベース）", /target\.dataset\.seedReset[\s\S]{0,800}localStorage\.removeItem\(STORAGE_KEYS\.factors\)/.test(src));
+check("data-seed-reset がシードに戻すボタン (setItem 上書き + verify ベース)", /target\.dataset\.seedReset[\s\S]{0,2000}localStorage\.setItem\(STORAGE_KEYS\.factors,\s*factorsJson\)/.test(src));
 check("bootstrapData は factors.length===0 で fetch する", /function bootstrapData\(\)[\s\S]{0,400}factors\.length > 0/.test(src));
 
 // GitHub API 関連

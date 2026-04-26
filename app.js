@@ -251,7 +251,9 @@ document.addEventListener("click", (event) => {
   if (target.dataset.seedReset !== undefined) {
     if (!ensureWritable()) return;
     if (!window.confirm("ローカルの factors / activities を削除し、シードデータから再起動します。よろしいですか？")) return;
-    // fetch が成功してからローカルを置き換える (失敗時にユーザーデータが消えないように)
+    // fetch が成功してから setItem + verify。 setItem が失敗したら旧データを rollback
+    // して in-memory も触らない。 ユーザーデータが「reset 操作」と「保存失敗」の両方で
+    // 二重に失われないようにする。
     fetch(state.settings.dataPath, { cache: "no-store" })
       .then((response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -263,15 +265,48 @@ document.addEventListener("click", (event) => {
           err.code = "seed_empty";
           throw err;
         }
+        const newActivities = Array.isArray(data.activities) ? data.activities : [];
+        const factorsJson = JSON.stringify(data.factors);
+        const activitiesJson = JSON.stringify(newActivities);
+        // 旧値を退避（rollback 用。 null は「キーが存在しなかった」状態を意味する）
+        let prevFactors = null;
+        let prevActivities = null;
         try {
-          localStorage.removeItem(STORAGE_KEYS.factors);
-          localStorage.removeItem(STORAGE_KEYS.activities);
+          prevFactors = localStorage.getItem(STORAGE_KEYS.factors);
+          prevActivities = localStorage.getItem(STORAGE_KEYS.activities);
         } catch (error) {}
+        // setItem + read-back verify を atomically 試みる
+        let writeError = null;
+        try {
+          localStorage.setItem(STORAGE_KEYS.factors, factorsJson);
+          if (localStorage.getItem(STORAGE_KEYS.factors) !== factorsJson) {
+            writeError = new Error("verify_failed_factors");
+          } else {
+            localStorage.setItem(STORAGE_KEYS.activities, activitiesJson);
+            if (localStorage.getItem(STORAGE_KEYS.activities) !== activitiesJson) {
+              writeError = new Error("verify_failed_activities");
+            }
+          }
+        } catch (error) {
+          writeError = error;
+        }
+        if (writeError) {
+          // rollback: 旧値を書き戻す（setItem 自体が失敗する状況なら rollback も失敗する可能性があるが、
+          // factors だけ部分書き込みして activities が失敗するケースを想定しているため、 まず試みる）
+          try {
+            if (prevFactors === null) localStorage.removeItem(STORAGE_KEYS.factors);
+            else localStorage.setItem(STORAGE_KEYS.factors, prevFactors);
+            if (prevActivities === null) localStorage.removeItem(STORAGE_KEYS.activities);
+            else localStorage.setItem(STORAGE_KEYS.activities, prevActivities);
+          } catch (rollbackError) {}
+          showToast(`シードデータの保存に失敗しました：${writeError.message || writeError}。ローカルデータを元の状態に復元しました。`, "error");
+          return;
+        }
+        // ここまで来たら永続化成功。 in-memory も置換
         factors = data.factors;
-        activities = Array.isArray(data.activities) ? data.activities : [];
+        activities = newActivities;
         state.selectedFactorId = "";
         state.draft = { factorId: "", amount: "", site: "", supplier: "", date: "", memo: "" };
-        persist();
         showToast(`シードデータから再起動しました（原単位 ${factors.length} 件）`, "success");
         render();
       })
