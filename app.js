@@ -312,8 +312,8 @@ function renderSidebar(route) {
       <a class="brand" href="#dashboard" aria-label="S&amp;Carbon home"><span class="logo-mark"></span><span>S&amp;Carbon</span></a>
       <nav class="nav">
         ${screens.map((screen) => `
-          <button class="nav-button ${route === screen.id ? "is-active" : ""}" data-route="${screen.id}">
-            ${icon(screen.icon)}<span>${screen.label}</span>
+          <button class="nav-button ${route === screen.id ? "is-active" : ""}" data-route="${escapeAttr(screen.id)}">
+            ${icon(screen.icon)}<span>${escapeHTML(screen.label)}</span>
           </button>
         `).join("")}
       </nav>
@@ -328,7 +328,7 @@ function renderSidebar(route) {
 function renderTopbar(screen) {
   return `
     <header class="topbar">
-      <h1>${screen.label}</h1>
+      <h1>${escapeHTML(screen.label)}</h1>
       <div class="top-controls">
         <div class="control">
           <label for="site-select">サイト・拠点</label>
@@ -360,8 +360,8 @@ function renderMobileHeader(screen) {
       </div>
     </header>
     <div class="mobile-title">
-      <h1>${screen.id === "dashboard" ? "ホーム" : screen.label}</h1>
-      <p>${mobileLead(screen.id)}</p>
+      <h1>${escapeHTML(screen.id === "dashboard" ? "ホーム" : screen.label)}</h1>
+      <p>${escapeHTML(mobileLead(screen.id))}</p>
     </div>
   `;
 }
@@ -373,8 +373,8 @@ function renderMobileTabbar(route) {
         const screen = screens.find((item) => item.id === id);
         const active = id === route || (route === "factors" && id === "data-list");
         return `
-          <button class="mobile-tab ${active ? "is-active" : ""}" data-route="${id}">
-            ${icon(screen.icon)}<span>${screen.mobile}</span>
+          <button class="mobile-tab ${active ? "is-active" : ""}" data-route="${escapeAttr(id)}">
+            ${icon(screen.icon)}<span>${escapeHTML(screen.mobile)}</span>
           </button>
         `;
       }).join("")}
@@ -411,7 +411,7 @@ function renderDashboard() {
     <div class="mobile-scope-strip" aria-label="Scope別内訳">
       ${["Scope 1", "Scope 2", "Scope 3"].map((scope) => `
         <div>
-          <strong>${scope}</strong>
+          <strong>${escapeHTML(scope)}</strong>
           <div>${formatNumber(totals[scope])}</div>
           <small class="muted">${percent(totals[scope], total)}%</small>
         </div>
@@ -506,15 +506,15 @@ function renderScopeMetric(scope, value, change) {
       <div>
         <div class="legend-row">
           <div>
-            <div class="metric-label">${scope}</div>
-            <p style="margin:4px 0 0">${meta.label}</p>
+            <div class="metric-label">${escapeHTML(scope)}</div>
+            <p style="margin:4px 0 0">${escapeHTML(meta.label)}</p>
           </div>
           <span class="scope-icon ${meta.color === "green" ? "green" : meta.color === "purple" ? "purple" : ""}">${icon(meta.icon)}</span>
         </div>
         <div class="metric-value">${formatNumber(value)}<small>t-CO2e</small></div>
       </div>
       <div class="metric-foot">
-        <span class="positive">↓ ${change}%</span>
+        <span class="positive">↓ ${escapeHTML(change)}%</span>
         <span>構成比 ${percent(value, getScopeTotals().total)}%</span>
       </div>
     </article>
@@ -539,8 +539,8 @@ function renderDataInput() {
         </div>
         <div class="tabs" style="margin-bottom:16px">
           ${["Scope 1", "Scope 2", "Scope 3"].map((scope) => `
-            <button class="tab-button ${state.scope === scope ? "is-active" : ""}" data-scope="${scope}">
-              ${icon(scopeMeta[scope].icon)} ${scope}
+            <button class="tab-button ${state.scope === scope ? "is-active" : ""}" data-scope="${escapeAttr(scope)}">
+              ${icon(scopeMeta[scope].icon)} ${escapeHTML(scope)}
             </button>
           `).join("")}
         </div>
@@ -772,7 +772,7 @@ function renderAnalytics() {
       </article>
       ${["Scope 1", "Scope 2", "Scope 3"].map((scope) => `
         <article class="card card-pad dark-card span-3">
-          <div class="metric-label">${scope}</div>
+          <div class="metric-label">${escapeHTML(scope)}</div>
           <div class="metric-value">${formatNumber(totals[scope])}<small>t-CO2e</small></div>
           <span class="positive">↓ ${scope === "Scope 1" ? "8.6" : scope === "Scope 2" ? "14.7" : "11.8"}%</span>
         </article>
@@ -803,7 +803,7 @@ function renderAnalytics() {
         <div class="section-title"><h2>削減ポテンシャル上位カテゴリ</h2></div>
         <div class="activity-list">
           ${["エネルギー効率改善", "購入電力の再エネ切替", "輸送の最適化", "製品設計の見直し", "出張の低減"].map((label, index) => `
-            <div class="activity-row"><span><strong>${index + 1}. ${label}</strong><small>${1023 - index * 148} t-CO2e/年</small></span><span class="badge amber">効果大</span></div>
+            <div class="activity-row"><span><strong>${index + 1}. ${escapeHTML(label)}</strong><small>${1023 - index * 148} t-CO2e/年</small></span><span class="badge amber">効果大</span></div>
           `).join("")}
         </div>
       </article>
@@ -839,8 +839,8 @@ function renderReports() {
           ${reportItems.map((item) => `
             <div class="report-item">
               <div class="legend-row">
-                <span>${icon("file")}<span><strong>${item.name}</strong><small>${item.desc}</small></span></span>
-                <button class="small-button" data-export-report="${item.type}">${icon("download")} 出力</button>
+                <span>${icon("file")}<span><strong>${escapeHTML(item.name)}</strong><small>${escapeHTML(item.desc)}</small></span></span>
+                <button class="small-button" data-export-report="${escapeAttr(item.type)}">${icon("download")} 出力</button>
               </div>
             </div>
           `).join("")}
@@ -852,7 +852,7 @@ function renderReports() {
           <table class="data-table" style="min-width:520px">
             <thead><tr><th>Scope</th><th>排出量(t-CO2e)</th><th>構成比</th></tr></thead>
             <tbody>
-              ${["Scope 1", "Scope 2", "Scope 3"].map((scope) => `<tr><td>${scope}</td><td>${formatNumber(totals[scope])}</td><td>${percent(totals[scope], totals.total)}%</td></tr>`).join("")}
+              ${["Scope 1", "Scope 2", "Scope 3"].map((scope) => `<tr><td>${escapeHTML(scope)}</td><td>${formatNumber(totals[scope])}</td><td>${percent(totals[scope], totals.total)}%</td></tr>`).join("")}
               <tr><td><strong>合計</strong></td><td><strong>${formatNumber(totals.total)}</strong></td><td>100.0%</td></tr>
             </tbody>
           </table>
@@ -863,7 +863,7 @@ function renderReports() {
           <table class="data-table" style="min-width:520px">
             <thead><tr><th>Scope</th><th>名称</th><th>係数</th><th>単位</th></tr></thead>
             <tbody>
-              ${factors.slice(0, 5).map((factor) => `<tr><td>${factor.scope}</td><td>${escapeHTML(factor.name)}</td><td>${factor.coefficient}</td><td>${escapeHTML(factor.unit)}</td></tr>`).join("")}
+              ${factors.slice(0, 5).map((factor) => `<tr><td>${escapeHTML(factor.scope)}</td><td>${escapeHTML(factor.name)}</td><td>${escapeHTML(factor.coefficient)}</td><td>${escapeHTML(factor.unit)}</td></tr>`).join("")}
             </tbody>
           </table>
         </div>
@@ -919,13 +919,13 @@ function renderActions() {
       <div class="kanban">
         ${columns.map((column) => `
           <div class="kanban-column">
-            <header>${column.title}</header>
+            <header>${escapeHTML(column.title)}</header>
             <div class="timeline">
               ${column.items.map((item, index) => `
                 <div class="timeline-item">
-                  <strong>${item}</strong>
+                  <strong>${escapeHTML(item)}</strong>
                   <small>想定削減 ${280 + index * 120} t-CO2e/年</small>
-                  <span class="badge ${column.title === "完了" ? "green" : column.title === "実行中" ? "purple" : "amber"}">${column.title}</span>
+                  <span class="badge ${column.title === "完了" ? "green" : column.title === "実行中" ? "purple" : "amber"}">${escapeHTML(column.title)}</span>
                 </div>
               `).join("")}
             </div>
@@ -958,7 +958,7 @@ function renderSettings() {
         <div class="section-title"><h2>テーマ</h2></div>
         <div class="theme-choice">
           ${["light", "dark", "system"].map((theme) => `
-            <button class="theme-button ${state.settings.theme === theme ? "is-active" : ""}" data-theme="${theme}">
+            <button class="theme-button ${state.settings.theme === theme ? "is-active" : ""}" data-theme="${escapeAttr(theme)}">
               <div class="theme-preview ${theme === "dark" ? "dark" : ""}"></div>
               <strong>${theme === "light" ? "ライト" : theme === "dark" ? "ダーク" : "システム設定"}</strong>
             </button>
@@ -1083,7 +1083,7 @@ function renderAlertRows(compact) {
     <div class="alert-list">
       ${rows.slice(0, compact ? 3 : rows.length).map((row) => `
         <div class="alert-row">
-          <span>${icon("alert")}<span><strong>${row[0]}</strong><small>${row[1]}</small></span></span>
+          <span>${icon("alert")}<span><strong>${escapeHTML(row[0])}</strong><small>${escapeHTML(row[1])}</small></span></span>
           <span class="badge ${row[2]}">確認</span>
         </div>
       `).join("")}
@@ -1122,7 +1122,7 @@ function renderBarList() {
     <div class="bar-list">
       ${rows.map((row) => `
         <div class="bar-row">
-          <strong>${row[0]}</strong>
+          <strong>${escapeHTML(row[0])}</strong>
           <div class="bar" style="width:${Math.max(18, row[1] / max * 100)}%"></div>
           <span>${formatNumber(row[1])}</span>
         </div>
