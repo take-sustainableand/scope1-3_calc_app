@@ -148,6 +148,15 @@ const state = {
     supplier: "",
     date: "",
     memo: ""
+  },
+  factorDraft: {
+    name: "",
+    scope: "Scope 1",
+    category: "",
+    unit: "",
+    coefficient: "",
+    region: "",
+    year: ""
   }
 };
 
@@ -406,15 +415,19 @@ document.addEventListener("click", (event) => {
 });
 
 document.addEventListener("input", (event) => {
-  const field = event.target.closest("[data-draft],[data-setting]");
+  const field = event.target.closest("[data-draft],[data-setting],input[id^='factor-'],select[id^='factor-']");
   if (!field) return;
-  if (field.dataset.draft) {
+  if (field.dataset && field.dataset.draft) {
     state.draft[field.dataset.draft] = field.value;
     updateCalcPreview();
-  }
-  if (field.dataset.setting) {
+  } else if (field.dataset && field.dataset.setting) {
     state.settings[field.dataset.setting] = field.value;
     persistSettings();
+  } else if (field.id && field.id.startsWith("factor-")) {
+    const key = field.id.replace("factor-", "");
+    if (key in state.factorDraft) {
+      state.factorDraft[key] = field.value;
+    }
   }
 });
 
@@ -445,16 +458,26 @@ document.addEventListener("keydown", (event) => {
 document.addEventListener("change", (event) => {
   const field = event.target.closest("[data-draft],[data-setting]");
   if (!field) return;
-  if (field.dataset.draft) {
-    state.draft[field.dataset.draft] = field.value;
+  // input ハンドラで state は常に最新化されているため、 change ハンドラでは
+  // 「再 render が必要なケース」だけを処理する。
+  // - data-draft="factorId"（select）: scope タブの追従と calc preview 再計算が必要
+  // - data-setting (topbar select)  : 集計値・候補の再計算が必要
+  // それ以外のテキスト入力（site / supplier / memo / amount / date）は state さえ
+  // 最新ならよく、 ここで render すると Playwright fill 中の DOM 入れ替えで
+  // 入力が落ちる（site が空になる）バグを引き起こすため触らない。
+  // select の change は dropdown が閉じた後に発火するため、 即 render して
+  // 良い（deferRender だと selectOption→.innerText() の race を引き起こす）。
+  if (field.dataset.draft === "factorId") {
+    state.draft.factorId = field.value;
     const factor = getFactor(state.draft.factorId);
     if (factor) state.scope = factor.scope;
-    deferRender();
+    render();
+    return;
   }
   if (field.dataset.setting) {
     state.settings[field.dataset.setting] = field.value;
     persistSettings();
-    deferRender();
+    render();
   }
 });
 
@@ -1040,15 +1063,17 @@ function renderFactors() {
 }
 
 function renderFactorForm(selected) {
+  const d = state.factorDraft;
+  const scopeSel = d.scope || selected?.scope || "Scope 1";
   return `
     <div class="form-grid" style="grid-template-columns:1fr">
-      <label class="field"><span>原単位名</span><input id="factor-name" placeholder="例：冷媒（R32）"></label>
-      <label class="field"><span>対象Scope</span><select id="factor-scope">${optionList(["Scope 1", "Scope 2", "Scope 3"], selected?.scope || "Scope 1")}</select></label>
-      <label class="field"><span>カテゴリ</span><input id="factor-category" placeholder="例：冷媒"></label>
-      <label class="field"><span>単位</span><input id="factor-unit" placeholder="例：kg"></label>
-      <label class="field"><span>係数（t-CO2e）</span><input id="factor-coefficient" type="number" step="0.000001" min="0" placeholder="例：0.000445"></label>
-      <label class="field"><span>適用地域</span><input id="factor-region" placeholder="例：日本"></label>
-      <label class="field"><span>参照年度</span><input id="factor-year" placeholder="例：2026"></label>
+      <label class="field"><span>原単位名</span><input id="factor-name" value="${escapeAttr(d.name)}" placeholder="例：冷媒（R32）"></label>
+      <label class="field"><span>対象Scope</span><select id="factor-scope">${optionList(["Scope 1", "Scope 2", "Scope 3"], scopeSel)}</select></label>
+      <label class="field"><span>カテゴリ</span><input id="factor-category" value="${escapeAttr(d.category)}" placeholder="例：冷媒"></label>
+      <label class="field"><span>単位</span><input id="factor-unit" value="${escapeAttr(d.unit)}" placeholder="例：kg"></label>
+      <label class="field"><span>係数（t-CO2e）</span><input id="factor-coefficient" type="number" step="0.000001" min="0" value="${escapeAttr(d.coefficient)}" placeholder="例：0.000445"></label>
+      <label class="field"><span>適用地域</span><input id="factor-region" value="${escapeAttr(d.region)}" placeholder="例：日本"></label>
+      <label class="field"><span>参照年度</span><input id="factor-year" value="${escapeAttr(d.year)}" placeholder="例：2026"></label>
       <button class="primary-button" data-add-factor>${icon("plus")} 登録する</button>
     </div>
     ${selected ? `
@@ -1449,8 +1474,13 @@ function formatFormula(factor) {
 
 function saveActivityFromForm() {
   if (!ensureWritable()) return;
-  const factorId = valueOf("[data-draft='factorId']");
-  const amount = Number(valueOf("[data-draft='amount']"));
+  // state.draft が input ハンドラで常に最新化されているのでそれを正とする。
+  // valueOf() は input.value を見るが、 fill 直後に何らかの理由で再 render されると
+  // 値がリセットされた DOM を読みにいく可能性があるため state.draft を信頼する。
+  // ただし select は state.draft.factorId が空の場合に DOM の現在値を fallback で読む。
+  let factorId = state.draft.factorId || valueOf("[data-draft='factorId']");
+  const amountStr = state.draft.amount !== "" && state.draft.amount != null ? state.draft.amount : valueOf("[data-draft='amount']");
+  const amount = Number(amountStr);
   if (!factorId) {
     showToast("排出源を選択してください", "error");
     return;
@@ -1463,14 +1493,18 @@ function saveActivityFromForm() {
     showToast("選択した原単位が見つかりません", "error");
     return;
   }
+  const site = (state.draft.site || valueOf("[data-draft='site']") || "").trim();
+  const supplier = state.draft.supplier || valueOf("[data-draft='supplier']") || "";
+  const date = state.draft.date || valueOf("[data-draft='date']") || new Date().toISOString().slice(0, 10);
+  const memo = state.draft.memo || valueOf("[data-draft='memo']") || "";
   activities.push({
     id: `a-${Date.now()}`,
     factorId,
     amount,
-    site: valueOf("[data-draft='site']") || "未設定",
-    supplier: valueOf("[data-draft='supplier']") || "",
-    date: valueOf("[data-draft='date']") || new Date().toISOString().slice(0, 10),
-    memo: valueOf("[data-draft='memo']") || ""
+    site: site || "未設定",
+    supplier,
+    date,
+    memo
   });
   state.draft.amount = amount;
   persist();
@@ -1480,11 +1514,13 @@ function saveActivityFromForm() {
 
 function saveFactorFromForm() {
   if (!ensureWritable()) return;
-  const name = valueOf("#factor-name").trim();
-  const scope = valueOf("#factor-scope") || "Scope 1";
-  const category = valueOf("#factor-category").trim() || "未分類";
-  const unit = valueOf("#factor-unit").trim();
-  const coefficient = Number(valueOf("#factor-coefficient"));
+  // state.factorDraft を正とし、 DOM 値は fallback として使う。
+  const d = state.factorDraft;
+  const name = (d.name || valueOf("#factor-name") || "").trim();
+  const scope = d.scope || valueOf("#factor-scope") || "Scope 1";
+  const category = (d.category || valueOf("#factor-category") || "").trim() || "未分類";
+  const unit = (d.unit || valueOf("#factor-unit") || "").trim();
+  const coefficient = Number(d.coefficient !== "" && d.coefficient != null ? d.coefficient : valueOf("#factor-coefficient"));
   if (!name) {
     showToast("原単位名を入力してください", "error");
     return;
@@ -1512,6 +1548,8 @@ function saveFactorFromForm() {
   factors.unshift(factor);
   state.selectedFactorId = factor.id;
   state.factorFilter = "すべて";
+  // フォーム下書きをクリア（登録成功時のみ）
+  state.factorDraft = { name: "", scope: "Scope 1", category: "", unit: "", coefficient: "", region: "", year: "" };
   persist();
   showToast("原単位を登録しました", "success");
   render();

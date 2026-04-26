@@ -14,8 +14,9 @@ module.exports = defineConfig({
     trace: "on-first-retry"
   },
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
-    { name: "mobile", use: { ...devices["iPhone 13"] } }
+    // chromium バイナリのバージョンと playwright 本体のバージョンがずれている環境のため、
+    // Mac にインストール済みの Google Chrome を直接使う。
+    { name: "chromium", use: { ...devices["Desktop Chrome"], channel: "chrome" } }
   ],
   webServer: {
     command: `python3 -m http.server ${PORT}`,
