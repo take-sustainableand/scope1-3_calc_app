@@ -564,6 +564,16 @@ async function bootstrapData() {
     if (activities.length === 0 && Array.isArray(data.activities) && data.activities.length) {
       activities = data.activities;
     }
+    // goals / actions は seed JSON に含まれていれば「ローカルが空のときだけ」復元（ユーザーが
+    // 意図的に空にした履歴を尊重）。
+    if (goals.length === 0 && Array.isArray(data.goals) && data.goals.length) {
+      goals = data.goals;
+      persistGoals();
+    }
+    if (actions.length === 0 && Array.isArray(data.actions) && data.actions.length) {
+      actions = data.actions;
+      persistActions();
+    }
     persist();
     render();
     if (factors.length === 0) {
@@ -2108,10 +2118,12 @@ function encodePath(path) {
 
 function buildStateJSON() {
   return JSON.stringify({
-    schemaVersion: 1,
+    schemaVersion: 2,
     generatedAt: new Date().toISOString(),
     factors,
-    activities
+    activities,
+    goals,
+    actions
   }, null, 2);
 }
 
@@ -2119,9 +2131,16 @@ function applyRemoteContent(payload, sha) {
   if (!payload) return false;
   if (Array.isArray(payload.factors)) factors = payload.factors;
   if (Array.isArray(payload.activities)) activities = payload.activities;
+  // schemaVersion 1 のリモートには goals/actions が無い。 missing は空配列で復元、
+  // 既に存在するキーは尊重して上書き（リモートが正）。 ただし v1 互換のため
+  // payload に goals/actions キー自体が無いときはローカルを残す（誤って消さない）。
+  if (Array.isArray(payload.goals)) goals = payload.goals;
+  if (Array.isArray(payload.actions)) actions = payload.actions;
   state.remote.sha = sha || "";
   state.remote.syncedAt = new Date().toISOString();
   persist();
+  persistGoals();
+  persistActions();
   persistRemote();
   return true;
 }
