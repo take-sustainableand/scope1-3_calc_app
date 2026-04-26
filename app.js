@@ -8,20 +8,54 @@ const STORAGE_KEYS = {
   remote: "scarbon:remote:v2"
 };
 
-const LEGACY_STORAGE_KEYS = [
-  "scarbon:factors:v1",
-  "scarbon:activities:v1",
-  "scarbon:settings:v1",
-  "scarbon:remote:v1"
+const LEGACY_STORAGE_PAIRS = [
+  { legacy: "scarbon:factors:v1", current: "scarbon:factors:v2" },
+  { legacy: "scarbon:activities:v1", current: "scarbon:activities:v2" },
+  { legacy: "scarbon:settings:v1", current: "scarbon:settings:v2" },
+  { legacy: "scarbon:remote:v1", current: "scarbon:remote:v2" }
 ];
 
+const LEGACY_BACKUP_KEY = "scarbon:legacy-backup:v1";
 const GITHUB_API = "https://api.github.com";
 
-(function purgeLegacyStorage() {
-  if (typeof localStorage === "undefined") return;
-  LEGACY_STORAGE_KEYS.forEach((key) => {
-    try { localStorage.removeItem(key); } catch (error) {}
+const legacyMigrationResult = (function migrateLegacyStorage() {
+  if (typeof localStorage === "undefined") return { migrated: false, conflicted: [] };
+  let migratedCount = 0;
+  const conflicted = [];
+  const snapshot = {};
+  let foundLegacy = false;
+  LEGACY_STORAGE_PAIRS.forEach(({ legacy }) => {
+    try {
+      const value = localStorage.getItem(legacy);
+      if (value !== null) {
+        snapshot[legacy] = value;
+        foundLegacy = true;
+      }
+    } catch (error) {}
   });
+  if (!foundLegacy) return { migrated: false, conflicted: [] };
+  // v1 を失う前にバックアップを取る
+  try {
+    localStorage.setItem(LEGACY_BACKUP_KEY, JSON.stringify({
+      backupAt: new Date().toISOString(),
+      data: snapshot
+    }));
+  } catch (error) {}
+  LEGACY_STORAGE_PAIRS.forEach(({ legacy, current }) => {
+    try {
+      const value = snapshot[legacy];
+      if (value === undefined || value === null) return;
+      const currentValue = localStorage.getItem(current);
+      if (currentValue === null) {
+        localStorage.setItem(current, value);
+        migratedCount += 1;
+      } else {
+        conflicted.push(legacy);
+      }
+      localStorage.removeItem(legacy);
+    } catch (error) {}
+  });
+  return { migrated: migratedCount > 0, migratedCount, conflicted };
 })();
 
 const screens = [
@@ -101,6 +135,11 @@ document.addEventListener("DOMContentLoaded", () => {
   applyTheme();
   render();
   bootstrapData();
+  if (legacyMigrationResult.migrated) {
+    showToast(`旧バージョン (v1) のデータ ${legacyMigrationResult.migratedCount} 件を移行しました。バックアップは設定画面から JSON 取得できます。`, "info");
+  } else if (legacyMigrationResult.conflicted && legacyMigrationResult.conflicted.length) {
+    showToast(`旧 v1 データは新 v2 と衝突したためバックアップにのみ退避しました。設定画面から確認できます。`, "info");
+  }
 });
 
 window.addEventListener("hashchange", () => {
@@ -109,7 +148,7 @@ window.addEventListener("hashchange", () => {
 });
 
 document.addEventListener("click", (event) => {
-  const target = event.target.closest("[data-route],[data-scope],[data-factor-filter],[data-factor-id],[data-fill-factor],[data-save-entry],[data-add-factor],[data-theme],[data-export],[data-export-report],[data-seed-reset],[data-remote-action],[data-restore-sha],[data-close-history],[data-token-save],[data-token-clear],[data-delete-activity],[data-delete-factor]");
+  const target = event.target.closest("[data-route],[data-scope],[data-factor-filter],[data-factor-id],[data-fill-factor],[data-save-entry],[data-add-factor],[data-theme],[data-export],[data-export-report],[data-seed-reset],[data-remote-action],[data-restore-sha],[data-close-history],[data-token-save],[data-token-clear],[data-delete-activity],[data-delete-factor],[data-export-legacy],[data-delete-legacy]");
   if (!target) return;
 
   if (target.dataset.route) {
@@ -224,6 +263,25 @@ document.addEventListener("click", (event) => {
     activities = activities.filter((activity) => activity.id !== target.dataset.deleteActivity);
     persist();
     showToast("活動データを削除しました", "success");
+    render();
+    return;
+  }
+
+  if (target.dataset.exportLegacy !== undefined) {
+    const backup = getLegacyBackup();
+    if (!backup) {
+      showToast("バックアップはありません", "error");
+      return;
+    }
+    downloadFile("scarbon-legacy-v1-backup.json", JSON.stringify(backup, null, 2), "application/json");
+    showToast("v1 バックアップを書き出しました", "success");
+    return;
+  }
+
+  if (target.dataset.deleteLegacy !== undefined) {
+    if (!window.confirm("v1 のバックアップを完全に削除します。よろしいですか？")) return;
+    try { localStorage.removeItem(LEGACY_BACKUP_KEY); } catch (error) {}
+    showToast("v1 バックアップを削除しました", "success");
     render();
     return;
   }
@@ -1128,8 +1186,29 @@ function renderSettings() {
           <button class="secondary-button" data-seed-reset>${icon("refresh")} 全データを削除</button>
         </div>
       </section>
+      ${renderLegacyBackupSection()}
     </div>
     ${state.historyOpen ? renderHistoryModal() : ""}
+  `;
+}
+
+function renderLegacyBackupSection() {
+  const backup = getLegacyBackup();
+  if (!backup) return "";
+  const backupAt = backup.backupAt ? new Date(backup.backupAt).toLocaleString("ja-JP") : "不明";
+  const keys = Object.keys(backup.data || {});
+  return `
+    <section class="card card-pad">
+      <div class="section-title"><h2>v1 バックアップ</h2><span class="badge amber">保護中</span></div>
+      <p class="muted">前バージョン (v1) で保存されていた以下のキーを退避しました。バックアップ時刻: ${escapeHTML(backupAt)}</p>
+      <ul style="margin:8px 0 14px; padding-left:20px;">
+        ${keys.map((key) => `<li><code>${escapeHTML(key)}</code></li>`).join("")}
+      </ul>
+      <div class="form-actions" style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="secondary-button" data-export-legacy>${icon("download")} JSON でダウンロード</button>
+        <button class="secondary-button" data-delete-legacy>${icon("refresh")} バックアップを削除</button>
+      </div>
+    </section>
   `;
 }
 
@@ -1402,6 +1481,15 @@ function persistSettings() {
 
 function persistRemote() {
   localStorage.setItem(STORAGE_KEYS.remote, JSON.stringify(state.remote));
+}
+
+function getLegacyBackup() {
+  try {
+    const raw = localStorage.getItem(LEGACY_BACKUP_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (error) {
+    return null;
+  }
 }
 
 function loadJSON(key, fallback) {

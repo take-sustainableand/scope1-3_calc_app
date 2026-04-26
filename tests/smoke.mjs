@@ -83,10 +83,16 @@ check("STORAGE_KEYS.token が定義されている", /token: "scarbon:token:v1"/
 check("getToken / setToken / clearToken が定義されている", /function getToken\(/.test(src) && /function setToken\(/.test(src) && /function clearToken\(/.test(src));
 check("buildStateJSON にトークンが含まれない", /function buildStateJSON\(\)\s*\{[^}]*\}/.test(src) && !/token:.*getToken\(\)/.test(src));
 
-// 旧 v1 localStorage の自動 purge
+// 旧 v1 localStorage の自動 migration（消すのではなく v2 へコピー＋バックアップ）
 check("STORAGE_KEYS が v2 にバージョンアップ", /factors: "scarbon:factors:v2"/.test(src) && /activities: "scarbon:activities:v2"/.test(src));
-check("LEGACY_STORAGE_KEYS に v1 が列挙されている", /scarbon:factors:v1/.test(src) && /scarbon:activities:v1/.test(src) && /scarbon:settings:v1/.test(src) && /scarbon:remote:v1/.test(src));
-check("purgeLegacyStorage が起動時に実行される", /\(function purgeLegacyStorage\(\)/.test(src) && /LEGACY_STORAGE_KEYS\.forEach/.test(src));
+check("LEGACY_STORAGE_PAIRS に v1 → v2 が列挙されている", /legacy: "scarbon:factors:v1", current: "scarbon:factors:v2"/.test(src) && /legacy: "scarbon:activities:v1", current: "scarbon:activities:v2"/.test(src));
+check("migrateLegacyStorage IIFE が起動時に実行される", /function migrateLegacyStorage\(\)/.test(src));
+check("LEGACY_BACKUP_KEY にバックアップを退避する", /LEGACY_BACKUP_KEY = "scarbon:legacy-backup:v1"/.test(src) && /localStorage\.setItem\(LEGACY_BACKUP_KEY/.test(src));
+check("v2 既存値を上書きしない（衝突は backup に退避）", /currentValue === null/.test(src));
+check("getLegacyBackup でバックアップを参照できる", /function getLegacyBackup\(/.test(src));
+check("renderLegacyBackupSection で UI 提供", /function renderLegacyBackupSection\(/.test(src));
+check("data-export-legacy / data-delete-legacy ハンドラあり", /data-export-legacy/.test(src) && /data-delete-legacy/.test(src));
+check("移行成功時にユーザーに通知する", /旧バージョン \(v1\) のデータ/.test(src));
 
 // GitHub API 関連
 check("githubGetContents 定義あり", /async function githubGetContents\(/.test(src));
