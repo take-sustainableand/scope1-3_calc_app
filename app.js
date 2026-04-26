@@ -464,7 +464,7 @@ function renderDashboard() {
         <div class="activity-list">
           ${activities.slice(-4).reverse().map((activity) => {
             const factor = getFactor(activity.factorId);
-            return `<div class="activity-row"><span><strong>${factor?.name || "未設定データ"}</strong><small>${activity.site} / ${activity.date}</small></span><span class="badge green">${formatNumber(calcEmission(activity, factor))}</span></div>`;
+            return `<div class="activity-row"><span><strong>${escapeHTML(factor?.name || "未設定データ")}</strong><small>${escapeHTML(activity.site)} / ${escapeHTML(activity.date)}</small></span><span class="badge green">${formatNumber(calcEmission(activity, factor))}</span></div>`;
           }).join("")}
         </div>
       </article>
@@ -493,7 +493,7 @@ function renderHeroMetric(total, nested = false) {
       <div class="metric-foot">
         <span>前月比 ↓ 8.6%</span>
         <span>前年比 ↓ 12.4%</span>
-        <span>集計期間：${state.settings.period}</span>
+        <span>集計期間：${escapeHTML(state.settings.period)}</span>
       </div>
     </${tag}>
   `;
@@ -562,7 +562,7 @@ function renderDataInput() {
         <div class="form-grid">
           <label class="field">
             <span>排出源・カテゴリ</span>
-            <select data-draft="factorId">${scopeFactors.map((factor) => `<option value="${factor.id}" ${factor.id === state.draft.factorId ? "selected" : ""}>${factor.name}</option>`).join("")}</select>
+            <select data-draft="factorId">${scopeFactors.map((factor) => `<option value="${escapeAttr(factor.id)}" ${factor.id === state.draft.factorId ? "selected" : ""}>${escapeHTML(factor.name)}</option>`).join("")}</select>
           </label>
           <label class="field">
             <span>活動量</span>
@@ -570,11 +570,11 @@ function renderDataInput() {
           </label>
           <label class="field">
             <span>単位</span>
-            <input value="${selected?.unit || ""}" readonly>
+            <input value="${escapeAttr(selected?.unit || "")}" readonly>
           </label>
           <label class="field">
             <span>原単位</span>
-            <input value="${selected?.coefficient || ""}" readonly>
+            <input value="${escapeAttr(selected?.coefficient ?? "")}" readonly>
           </label>
           <label class="field">
             <span>拠点</span>
@@ -620,8 +620,8 @@ function renderDataInput() {
             const factor = getFactor(activity.factorId);
             return `
               <div class="activity-row">
-                <span><strong>${factor?.name || "未設定"}</strong><small>${activity.site} / ${formatNumber(activity.amount)} ${factor?.unit || ""}</small></span>
-                <button class="small-button" data-fill-factor="${activity.factorId}">使用</button>
+                <span><strong>${escapeHTML(factor?.name || "未設定")}</strong><small>${escapeHTML(activity.site)} / ${formatNumber(activity.amount)} ${escapeHTML(factor?.unit || "")}</small></span>
+                <button class="small-button" data-fill-factor="${escapeAttr(activity.factorId)}">使用</button>
               </div>
             `;
           }).join("")}
@@ -710,18 +710,18 @@ function renderFactors() {
             <button class="icon-button" aria-label="フィルター">${icon("filter")}</button>
           </div>
           <div class="chips">
-            ${categories.map((category) => `<button class="chip ${state.factorFilter === category ? "is-active" : ""}" data-factor-filter="${category}">${category}</button>`).join("")}
+            ${categories.map((category) => `<button class="chip ${state.factorFilter === category ? "is-active" : ""}" data-factor-filter="${escapeAttr(category)}">${escapeHTML(category)}</button>`).join("")}
           </div>
         </div>
         <div class="factor-list">
           ${filtered.map((factor) => `
-            <button class="factor-item ${selected?.id === factor.id ? "is-selected" : ""}" data-factor-id="${factor.id}">
+            <button class="factor-item ${selected?.id === factor.id ? "is-selected" : ""}" data-factor-id="${escapeAttr(factor.id)}">
               <span class="scope-icon ${factor.scope === "Scope 2" ? "green" : factor.scope === "Scope 3" ? "purple" : ""}">${icon(scopeMeta[factor.scope]?.icon || "layers")}</span>
               <span>
-                <strong>${factor.name}</strong>
-                <small>${factor.category} / ${factor.region} / ${factor.year}年度</small>
+                <strong>${escapeHTML(factor.name)}</strong>
+                <small>${escapeHTML(factor.category)} / ${escapeHTML(factor.region)} / ${escapeHTML(factor.year)}年度</small>
               </span>
-              <span class="factor-value">${factor.coefficient}<small>t-CO2e / ${factor.unit}</small></span>
+              <span class="factor-value">${escapeHTML(factor.coefficient)}<small>t-CO2e / ${escapeHTML(factor.unit)}</small></span>
             </button>
           `).join("")}
         </div>
