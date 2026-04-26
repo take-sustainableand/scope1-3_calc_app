@@ -291,7 +291,9 @@ const exempt = new Set([
   "token-clear", "remote-action", "restore-sha", "close-history", "scope",
   "factor-filter", "fill-factor", "theme", "export", "export-report",
   "seed-reset", "clear-activities", "route",
-  "input", "list", "table"
+  "input", "list", "table",
+  // 補助情報。 closest("[data-action-status]") で取った要素から dataset.actionId を読む
+  "action-id"
 ]);
 const missing = Array.from(dataAttrUsed).filter((a) => !handled.has(a) && !exempt.has(a));
 check(`click ハンドラに分岐の無い data-* 属性が無い (使用: ${dataAttrUsed.size})`, missing.length === 0, `missing: ${missing.join(", ")}`);

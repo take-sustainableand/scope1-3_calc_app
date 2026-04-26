@@ -5,8 +5,12 @@ const STORAGE_KEYS = {
   activities: "scarbon:activities:v2",
   settings: "scarbon:settings:v2",
   token: "scarbon:token:v1",
-  remote: "scarbon:remote:v2"
+  remote: "scarbon:remote:v2",
+  goals: "scarbon:goals:v1",
+  actions: "scarbon:actions:v1"
 };
+
+const ACTION_STATUSES = ["検討中", "実行中", "完了"];
 
 const LEGACY_STORAGE_PAIRS = [
   { legacy: "scarbon:factors:v1", current: "scarbon:factors:v2" },
@@ -107,6 +111,8 @@ const seedFactors = [
 ];
 
 const seedActivities = [];
+const seedGoals = [];
+const seedActions = [];
 
 const scopeMeta = {
   "Scope 1": { color: "primary", icon: "factory", label: "直接排出" },
@@ -157,11 +163,15 @@ const state = {
     coefficient: "",
     region: "",
     year: ""
-  }
+  },
+  goalDraft: { year: "", scope: "全Scope", targetTons: "", note: "" },
+  actionDraft: { title: "", expectedReductionTons: "", status: "検討中", dueDate: "", note: "" }
 };
 
 let factors = loadInitialCollection(STORAGE_KEYS.factors, "scarbon:factors:v1", seedFactors);
 let activities = loadInitialCollection(STORAGE_KEYS.activities, "scarbon:activities:v1", seedActivities);
+let goals = loadJSON(STORAGE_KEYS.goals, seedGoals);
+let actions = loadJSON(STORAGE_KEYS.actions, seedActions);
 
 document.addEventListener("DOMContentLoaded", () => {
   applyTheme();
@@ -182,7 +192,7 @@ window.addEventListener("hashchange", () => {
 });
 
 document.addEventListener("click", (event) => {
-  const target = event.target.closest("[data-route],[data-scope],[data-factor-filter],[data-factor-id],[data-fill-factor],[data-save-entry],[data-add-factor],[data-theme],[data-export],[data-export-report],[data-seed-reset],[data-clear-activities],[data-remote-action],[data-restore-sha],[data-close-history],[data-token-save],[data-token-clear],[data-delete-activity],[data-delete-factor],[data-export-legacy],[data-delete-legacy]");
+  const target = event.target.closest("[data-route],[data-scope],[data-factor-filter],[data-factor-id],[data-fill-factor],[data-save-entry],[data-add-factor],[data-theme],[data-export],[data-export-report],[data-seed-reset],[data-clear-activities],[data-remote-action],[data-restore-sha],[data-close-history],[data-token-save],[data-token-clear],[data-delete-activity],[data-delete-factor],[data-export-legacy],[data-delete-legacy],[data-add-goal],[data-delete-goal],[data-add-action],[data-delete-action],[data-action-status]");
   if (!target) return;
 
   if (target.dataset.route) {
@@ -412,10 +422,55 @@ document.addEventListener("click", (event) => {
     render();
     return;
   }
+
+  if (target.dataset.addGoal !== undefined) {
+    saveGoalFromForm();
+    return;
+  }
+
+  if (target.dataset.deleteGoal) {
+    if (!ensureWritable()) return;
+    if (!window.confirm("この目標を削除します。よろしいですか？")) return;
+    const id = target.dataset.deleteGoal;
+    goals = goals.filter((g) => g.id !== id);
+    persistGoals();
+    showToast("目標を削除しました", "success");
+    render();
+    return;
+  }
+
+  if (target.dataset.addAction !== undefined) {
+    saveActionFromForm();
+    return;
+  }
+
+  if (target.dataset.deleteAction) {
+    if (!ensureWritable()) return;
+    if (!window.confirm("この施策を削除します。よろしいですか？")) return;
+    const id = target.dataset.deleteAction;
+    actions = actions.filter((a) => a.id !== id);
+    persistActions();
+    showToast("施策を削除しました", "success");
+    render();
+    return;
+  }
+
+  if (target.dataset.actionStatus && target.dataset.actionId) {
+    if (!ensureWritable()) return;
+    const id = target.dataset.actionId;
+    const next = target.dataset.actionStatus;
+    if (!ACTION_STATUSES.includes(next)) return;
+    const action = actions.find((a) => a.id === id);
+    if (!action) return;
+    action.status = next;
+    persistActions();
+    render();
+    return;
+  }
 });
 
 document.addEventListener("input", (event) => {
-  const field = event.target.closest("[data-draft],[data-setting],input[id^='factor-'],select[id^='factor-']");
+  const field = event.target.closest("[data-draft],[data-setting],input[id^='factor-'],select[id^='factor-'],input[id^='goal-'],select[id^='goal-'],input[id^='action-'],select[id^='action-'],textarea[id^='action-']");
   if (!field) return;
   if (field.dataset && field.dataset.draft) {
     state.draft[field.dataset.draft] = field.value;
@@ -427,6 +482,16 @@ document.addEventListener("input", (event) => {
     const key = field.id.replace("factor-", "");
     if (key in state.factorDraft) {
       state.factorDraft[key] = field.value;
+    }
+  } else if (field.id && field.id.startsWith("goal-")) {
+    const key = field.id.replace("goal-", "");
+    if (key in state.goalDraft) {
+      state.goalDraft[key] = field.value;
+    }
+  } else if (field.id && field.id.startsWith("action-")) {
+    const key = field.id.replace("action-", "");
+    if (key in state.actionDraft) {
+      state.actionDraft[key] = field.value;
     }
   }
 });
@@ -1212,32 +1277,226 @@ function renderReports() {
 }
 
 function renderGoals() {
-  const total = getScopeTotals().total;
+  const d = state.goalDraft;
+  const scopeOptions = ["全Scope", "Scope 1", "Scope 2", "Scope 3"];
+  const yearOptions = goalYearOptions();
+  const goalRows = [...goals].sort((a, b) => String(a.year).localeCompare(String(b.year))).map((g) => {
+    const actual = goalActual(g);
+    const target = Number(g.targetTons) || 0;
+    const ratio = target > 0 ? Math.min(actual / target, 1.5) : 0;
+    const overshoot = target > 0 && actual > target;
+    const pct = target > 0 ? Math.round((actual / target) * 100) : 0;
+    const barColor = overshoot ? "var(--red)" : "var(--green)";
+    return `
+      <article class="goal-card">
+        <div class="goal-card-head">
+          <div>
+            <strong>${escapeHTML(String(g.year))} 年度</strong>
+            <small class="muted">${escapeHTML(g.scope || "全Scope")}</small>
+          </div>
+          <button class="small-button" data-delete-goal="${escapeAttr(g.id)}">削除</button>
+        </div>
+        <div class="goal-progress">
+          <div class="goal-progress-bar"><span style="width:${Math.min(ratio * 100, 100)}%; background:${barColor}"></span></div>
+          <div class="goal-progress-meta">
+            <span>実績 <strong>${formatNumber(actual)}</strong> / 目標 <strong>${formatNumber(target)}</strong> t-CO2e</span>
+            <span class="${overshoot ? "goal-over" : "goal-ok"}">${pct}%</span>
+          </div>
+        </div>
+        ${g.note ? `<p class="muted">${escapeHTML(g.note)}</p>` : ""}
+      </article>
+    `;
+  }).join("");
   return `
-    <section class="card card-pad">
-      <div class="section-title"><h2>削減目標</h2></div>
-      <p class="muted">削減目標と進捗管理は今後のアップデートで実装予定です。現状の総排出量は <strong>${formatNumber(total)} t-CO2e</strong> です。</p>
-      <div class="empty-state">
-        ${icon("target")}
-        <h3>目標は未設定です</h3>
-        <p class="muted">将来的に基準年・目標値・年次マイルストーンを登録できるようにします。</p>
-      </div>
-    </section>
+    <div class="form-layout">
+      <section class="card card-pad">
+        <div class="section-title"><h2>削減目標を登録</h2></div>
+        <div class="form-grid">
+          <label class="field">
+            <span>対象年度</span>
+            <select id="goal-year">${optionList(yearOptions, d.year || yearOptions[0])}</select>
+          </label>
+          <label class="field">
+            <span>対象Scope</span>
+            <select id="goal-scope">${optionList(scopeOptions, d.scope || "全Scope")}</select>
+          </label>
+          <label class="field">
+            <span>目標排出量 (t-CO2e)</span>
+            <input id="goal-targetTons" type="number" min="0" step="0.001" value="${escapeAttr(d.targetTons)}" placeholder="例：12.5">
+          </label>
+          <label class="field" style="grid-column: 1 / -1">
+            <span>メモ</span>
+            <input id="goal-note" value="${escapeAttr(d.note)}" placeholder="例：基準年比 30% 削減">
+          </label>
+        </div>
+        <div class="form-actions" style="display:flex; justify-content:flex-end; margin-top:14px">
+          <button class="primary-button" data-add-goal>${icon("plus")} 目標を登録</button>
+        </div>
+      </section>
+      <section class="card card-pad">
+        <div class="section-title"><h2>登録済みの目標</h2></div>
+        ${goals.length === 0 ? `
+          <div class="empty-state">
+            ${icon("target")}
+            <h3>目標は未登録です</h3>
+            <p class="muted">左のフォームから対象年度・Scope・目標値を登録すると、 実績との比較が表示されます。</p>
+          </div>
+        ` : `<div class="goal-list">${goalRows}</div>`}
+      </section>
+    </div>
   `;
 }
 
+function goalYearOptions() {
+  const dates = activities.map((a) => (a.date || "").slice(0, 4)).filter(Boolean);
+  const baseYear = new Date().getFullYear();
+  const set = new Set(dates);
+  for (let i = -1; i <= 3; i += 1) set.add(String(baseYear + i));
+  return Array.from(set).sort();
+}
+
+function goalActual(goal) {
+  let total = 0;
+  activities.forEach((activity) => {
+    if (!activity.date || !String(activity.date).startsWith(String(goal.year))) return;
+    const factor = getFactor(activity.factorId);
+    if (!factor) return;
+    if (goal.scope && goal.scope !== "全Scope" && factor.scope !== goal.scope) return;
+    total += calcEmission(activity, factor);
+  });
+  return total;
+}
+
+function saveGoalFromForm() {
+  if (!ensureWritable()) return;
+  const d = state.goalDraft;
+  const year = (d.year || valueOf("#goal-year") || "").toString().trim();
+  const scope = d.scope || valueOf("#goal-scope") || "全Scope";
+  const targetTonsRaw = d.targetTons !== "" && d.targetTons != null ? d.targetTons : valueOf("#goal-targetTons");
+  const targetTons = Number(targetTonsRaw);
+  const note = (d.note || valueOf("#goal-note") || "").trim();
+  if (!year) {
+    showToast("対象年度を選択してください", "error");
+    return;
+  }
+  if (!Number.isFinite(targetTons) || targetTons <= 0) {
+    showToast("目標排出量は0より大きい数値を入力してください", "error");
+    return;
+  }
+  if (goals.some((g) => g.year === year && g.scope === scope)) {
+    showToast(`${year}年度・${scope} の目標は既に登録済みです`, "error");
+    return;
+  }
+  goals.push({ id: `g-${Date.now()}`, year, scope, targetTons, note });
+  state.goalDraft = { year: "", scope: "全Scope", targetTons: "", note: "" };
+  persistGoals();
+  showToast("目標を登録しました", "success");
+  render();
+}
+
 function renderActions() {
-  return `
-    <section class="card card-pad">
-      <div class="section-title"><h2>削減施策管理</h2></div>
-      <p class="muted">削減施策のカンバン管理は今後のアップデートで実装予定です。</p>
-      <div class="empty-state">
-        ${icon("leaf")}
-        <h3>施策は未登録です</h3>
-        <p class="muted">検討中・実行中・完了の3カラムで施策を整理できるようにします。</p>
+  const d = state.actionDraft;
+  const columns = ACTION_STATUSES.map((status) => {
+    const items = actions.filter((a) => a.status === status);
+    return `
+      <div class="kanban-column">
+        <h3>${escapeHTML(status)}<small>${items.length} 件</small></h3>
+        ${items.length === 0 ? `<p class="muted" style="padding:12px 0">該当する施策はありません</p>` : items.map((a) => `
+          <article class="action-card">
+            <div class="action-card-head">
+              <strong>${escapeHTML(a.title)}</strong>
+              <button class="small-button" data-delete-action="${escapeAttr(a.id)}">削除</button>
+            </div>
+            ${a.expectedReductionTons ? `<p class="muted">期待削減量：${formatNumber(Number(a.expectedReductionTons))} t-CO2e</p>` : ""}
+            ${a.dueDate ? `<p class="muted">期限：${escapeHTML(a.dueDate)}</p>` : ""}
+            ${a.note ? `<p>${escapeHTML(a.note)}</p>` : ""}
+            <div class="action-card-actions">
+              ${ACTION_STATUSES.filter((s) => s !== a.status).map((s) => `
+                <button class="small-button" data-action-id="${escapeAttr(a.id)}" data-action-status="${escapeAttr(s)}">→ ${escapeHTML(s)}</button>
+              `).join("")}
+            </div>
+          </article>
+        `).join("")}
       </div>
-    </section>
+    `;
+  }).join("");
+  return `
+    <div class="form-layout">
+      <section class="card card-pad">
+        <div class="section-title"><h2>削減施策を追加</h2></div>
+        <div class="form-grid">
+          <label class="field" style="grid-column: 1 / -1">
+            <span>施策タイトル</span>
+            <input id="action-title" value="${escapeAttr(d.title)}" placeholder="例：本社の LED 化">
+          </label>
+          <label class="field">
+            <span>期待削減量 (t-CO2e)</span>
+            <input id="action-expectedReductionTons" type="number" min="0" step="0.001" value="${escapeAttr(d.expectedReductionTons)}" placeholder="例：3.2">
+          </label>
+          <label class="field">
+            <span>状態</span>
+            <select id="action-status">${optionList(ACTION_STATUSES, d.status || "検討中")}</select>
+          </label>
+          <label class="field">
+            <span>期限</span>
+            <input id="action-dueDate" type="date" value="${escapeAttr(d.dueDate)}">
+          </label>
+          <label class="field" style="grid-column: 1 / -1">
+            <span>メモ</span>
+            <input id="action-note" value="${escapeAttr(d.note)}" placeholder="例：投資 50 万円、 回収 2 年">
+          </label>
+        </div>
+        <div class="form-actions" style="display:flex; justify-content:flex-end; margin-top:14px">
+          <button class="primary-button" data-add-action>${icon("plus")} 施策を追加</button>
+        </div>
+      </section>
+      <section class="card card-pad">
+        <div class="section-title"><h2>カンバン</h2></div>
+        ${actions.length === 0 ? `
+          <div class="empty-state">
+            ${icon("leaf")}
+            <h3>施策は未登録です</h3>
+            <p class="muted">左のフォームから施策を追加してください。 検討中→実行中→完了で進捗を管理できます。</p>
+          </div>
+        ` : `<div class="kanban">${columns}</div>`}
+      </section>
+    </div>
   `;
+}
+
+function saveActionFromForm() {
+  if (!ensureWritable()) return;
+  const d = state.actionDraft;
+  const title = (d.title || valueOf("#action-title") || "").trim();
+  const expectedRaw = d.expectedReductionTons !== "" && d.expectedReductionTons != null ? d.expectedReductionTons : valueOf("#action-expectedReductionTons");
+  const expectedReductionTons = expectedRaw === "" || expectedRaw == null ? "" : Number(expectedRaw);
+  const status = d.status || valueOf("#action-status") || "検討中";
+  const dueDate = d.dueDate || valueOf("#action-dueDate") || "";
+  const note = (d.note || valueOf("#action-note") || "").trim();
+  if (!title) {
+    showToast("施策タイトルを入力してください", "error");
+    return;
+  }
+  if (expectedReductionTons !== "" && (!Number.isFinite(expectedReductionTons) || expectedReductionTons < 0)) {
+    showToast("期待削減量は0以上の数値を入力してください", "error");
+    return;
+  }
+  if (!ACTION_STATUSES.includes(status)) {
+    showToast("不正な状態です", "error");
+    return;
+  }
+  actions.push({
+    id: `act-${Date.now()}`,
+    title,
+    expectedReductionTons,
+    status,
+    dueDate,
+    note
+  });
+  state.actionDraft = { title: "", expectedReductionTons: "", status: "検討中", dueDate: "", note: "" };
+  persistActions();
+  showToast("施策を追加しました", "success");
+  render();
 }
 
 function renderAlerts() {
@@ -1686,6 +1945,16 @@ function persistSettings() {
 function persistRemote() {
   if (legacyMigrationResult.backupFailed) return;
   localStorage.setItem(STORAGE_KEYS.remote, JSON.stringify(state.remote));
+}
+
+function persistGoals() {
+  if (legacyMigrationResult.backupFailed) return;
+  localStorage.setItem(STORAGE_KEYS.goals, JSON.stringify(goals));
+}
+
+function persistActions() {
+  if (legacyMigrationResult.backupFailed) return;
+  localStorage.setItem(STORAGE_KEYS.actions, JSON.stringify(actions));
 }
 
 function loadInitialCollection(currentKey, legacyKey, fallback) {

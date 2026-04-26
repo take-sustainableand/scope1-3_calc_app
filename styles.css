@@ -906,6 +906,103 @@ button {
   padding: 12px;
 }
 
+.kanban-column h3 {
+  margin: 0;
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.kanban-column h3 small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.action-card {
+  margin: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  display: grid;
+  gap: 6px;
+}
+
+.action-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.action-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.goal-list {
+  display: grid;
+  gap: 12px;
+}
+
+.goal-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  background: var(--surface);
+  display: grid;
+  gap: 8px;
+}
+
+.goal-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.goal-card-head small {
+  display: block;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.goal-progress {
+  display: grid;
+  gap: 6px;
+}
+
+.goal-progress-bar {
+  height: 8px;
+  background: var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.goal-progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  transition: width 240ms ease;
+}
+
+.goal-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.goal-ok { color: var(--green); font-weight: 800; }
+.goal-over { color: var(--red); font-weight: 800; }
+
 .settings-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

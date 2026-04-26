@@ -2,9 +2,15 @@
 const { test, expect } = require("@playwright/test");
 
 test.beforeEach(async ({ page }) => {
-  // 各テストはまっさらな localStorage で開始
+  // 各テストはまっさらな localStorage で開始（ただし reload 後は clear しない、
+  // 永続化検証テストが壊れるため sessionStorage に「初回完了」フラグを置く）
   await page.addInitScript(() => {
-    try { localStorage.clear(); } catch (error) {}
+    try {
+      if (!sessionStorage.getItem("__test_inited")) {
+        localStorage.clear();
+        sessionStorage.setItem("__test_inited", "1");
+      }
+    } catch (error) {}
   });
 });
 
@@ -567,6 +573,88 @@ test("topbar の集計期間と site フィルタが両方同時に効く", asyn
 test("hash route として存在しない URL は dashboard に fallback する", async ({ page }) => {
   await page.goto("/#nonexistent-route");
   await expect(page.getByRole("heading", { name: "ホーム" })).toBeVisible();
+});
+
+test("削減目標を登録すると進捗バーが出る・削除できる", async ({ page }) => {
+  // 2026 年に活動 1 件入れておく
+  await page.goto("/#data-input");
+  await page.locator('[data-draft="amount"]').fill("100");
+  await page.locator('[data-draft="date"]').fill("2026-04-10");
+  await page.locator("[data-save-entry]").click();
+  await expect(page).toHaveURL(/#data-list/);
+
+  // 目標登録
+  await page.goto("/#goals");
+  await page.locator("#goal-year").selectOption("2026");
+  await page.locator("#goal-scope").selectOption("Scope 1");
+  await page.locator("#goal-targetTons").fill("0.5");
+  await page.locator("[data-add-goal]").click();
+  await expect(page.locator(".toast-success")).toBeVisible();
+
+  // 進捗バーが描画される
+  await expect(page.locator(".goal-card").first()).toBeVisible();
+  await expect(page.locator(".goal-progress-bar").first()).toBeVisible();
+
+  // 削除
+  page.on("dialog", (d) => d.accept());
+  await page.locator("[data-delete-goal]").first().click();
+  await expect(page.locator(".empty-state").first()).toBeVisible();
+});
+
+test("削減目標は重複登録（同年度・同Scope）が弾かれる", async ({ page }) => {
+  await page.goto("/#goals");
+  await page.locator("#goal-targetTons").fill("1");
+  await page.locator("[data-add-goal]").click();
+  await expect(page.locator(".toast-success")).toBeVisible();
+  // もう一度同じ年度・同じ scope で
+  await page.locator("#goal-targetTons").fill("2");
+  await page.locator("[data-add-goal]").click();
+  await expect(page.locator(".toast-error")).toBeVisible();
+});
+
+test("削減施策を追加するとカンバンに出る・状態を移動できる・削除できる", async ({ page }) => {
+  await page.goto("/#actions");
+  await page.locator("#action-title").fill("LED 化");
+  await page.locator("#action-expectedReductionTons").fill("3.5");
+  await page.locator("[data-add-action]").click();
+  await expect(page.locator(".toast-success")).toBeVisible();
+
+  // 検討中カラムに 1 件
+  await expect(page.locator(".action-card").first()).toBeVisible();
+  await expect(page.locator(".kanban-column").first().locator(".action-card")).toHaveCount(1);
+
+  // 「→ 実行中」を click
+  await page.locator('[data-action-status="実行中"]').first().click();
+  // 検討中は 0、 実行中に移った
+  await expect(page.locator(".kanban-column").nth(0).locator(".action-card")).toHaveCount(0);
+  await expect(page.locator(".kanban-column").nth(1).locator(".action-card")).toHaveCount(1);
+
+  // 削除
+  page.on("dialog", (d) => d.accept());
+  await page.locator("[data-delete-action]").click();
+  await expect(page.getByRole("heading", { name: "施策は未登録です" })).toBeVisible();
+});
+
+test("削減施策はタイトル空で弾かれる", async ({ page }) => {
+  await page.goto("/#actions");
+  await page.locator("[data-add-action]").click();
+  await expect(page.locator(".toast-error")).toBeVisible();
+});
+
+test("Goals/Actions の値はリロードしても残る", async ({ page }) => {
+  await page.goto("/#goals");
+  await page.locator("#goal-targetTons").fill("10");
+  await page.locator("[data-add-goal]").click();
+  await page.goto("/#actions");
+  await page.locator("#action-title").fill("空調更新");
+  await page.locator("[data-add-action]").click();
+
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  await page.goto("/#goals");
+  await expect(page.locator(".goal-card")).toHaveCount(1);
+  await page.goto("/#actions");
+  await expect(page.locator(".action-card")).toHaveCount(1);
 });
 
 test("factor 削除後に同じ ID で activity を保存しようとするとエラー", async ({ page }) => {
