@@ -1195,6 +1195,50 @@ button {
   color: var(--muted);
 }
 
+.onboarding {
+  display: grid;
+  gap: 18px;
+}
+
+.onboarding h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.onboarding > p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.onboarding-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.onboarding-steps li {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  background: var(--surface-soft);
+  display: grid;
+  gap: 8px;
+}
+
+.onboarding-steps strong {
+  font-size: 15px;
+}
+
+.onboarding-steps button {
+  justify-self: flex-start;
+}
+
+.line-chart text {
+  fill: var(--muted);
+}
+
 .empty {
   min-height: 220px;
   display: grid;

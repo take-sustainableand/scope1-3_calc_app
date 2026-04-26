@@ -1,6 +1,14 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-04-26T00:00:00+09:00",
-  "factors": [],
+  "factors": [
+    { "id": "f-electricity", "scope": "Scope 2", "name": "電力（日本・全国平均）", "category": "電力", "unit": "kWh", "coefficient": 0.000434, "source": "環境省 算定・報告・公表制度 R03年度実績代替値", "region": "日本", "year": "2023", "status": "公式" },
+    { "id": "f-citygas", "scope": "Scope 1", "name": "都市ガス（13A）", "category": "燃料", "unit": "m3", "coefficient": 0.00221, "source": "環境省 算定・報告・公表制度", "region": "日本", "year": "2023", "status": "公式" },
+    { "id": "f-gasoline", "scope": "Scope 1", "name": "ガソリン", "category": "燃料", "unit": "L", "coefficient": 0.00232, "source": "環境省 算定・報告・公表制度", "region": "日本", "year": "2023", "status": "公式" },
+    { "id": "f-diesel", "scope": "Scope 1", "name": "軽油", "category": "燃料", "unit": "L", "coefficient": 0.00258, "source": "環境省 算定・報告・公表制度", "region": "日本", "year": "2023", "status": "公式" },
+    { "id": "f-commute-rail", "scope": "Scope 3", "name": "通勤（鉄道）", "category": "通勤", "unit": "人km", "coefficient": 0.0000196, "source": "国交省 旅客輸送統計（CO2排出原単位）", "region": "日本", "year": "2022", "status": "公式" },
+    { "id": "f-commute-bus", "scope": "Scope 3", "name": "通勤（路線バス）", "category": "通勤", "unit": "人km", "coefficient": 0.0000571, "source": "国交省 旅客輸送統計（CO2排出原単位）", "region": "日本", "year": "2022", "status": "公式" },
+    { "id": "f-commute-car", "scope": "Scope 3", "name": "通勤（自家用乗用車）", "category": "通勤", "unit": "人km", "coefficient": 0.000130, "source": "国交省 旅客輸送統計（CO2排出原単位）", "region": "日本", "year": "2022", "status": "公式" }
+  ],
   "activities": []
 }

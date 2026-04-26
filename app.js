@@ -25,7 +25,15 @@ const screens = [
 
 const mobileScreens = ["dashboard", "data-list", "data-input", "analytics", "settings"];
 
-const seedFactors = [];
+const seedFactors = [
+  { id: "f-electricity", scope: "Scope 2", name: "電力（日本・全国平均）", category: "電力", unit: "kWh", coefficient: 0.000434, source: "環境省 算定・報告・公表制度 R03年度実績代替値", region: "日本", year: "2023", status: "公式" },
+  { id: "f-citygas", scope: "Scope 1", name: "都市ガス（13A）", category: "燃料", unit: "m3", coefficient: 0.00221, source: "環境省 算定・報告・公表制度", region: "日本", year: "2023", status: "公式" },
+  { id: "f-gasoline", scope: "Scope 1", name: "ガソリン", category: "燃料", unit: "L", coefficient: 0.00232, source: "環境省 算定・報告・公表制度", region: "日本", year: "2023", status: "公式" },
+  { id: "f-diesel", scope: "Scope 1", name: "軽油", category: "燃料", unit: "L", coefficient: 0.00258, source: "環境省 算定・報告・公表制度", region: "日本", year: "2023", status: "公式" },
+  { id: "f-commute-rail", scope: "Scope 3", name: "通勤（鉄道）", category: "通勤", unit: "人km", coefficient: 0.0000196, source: "国交省 旅客輸送統計（CO2排出原単位）", region: "日本", year: "2022", status: "公式" },
+  { id: "f-commute-bus", scope: "Scope 3", name: "通勤（路線バス）", category: "通勤", unit: "人km", coefficient: 0.0000571, source: "国交省 旅客輸送統計（CO2排出原単位）", region: "日本", year: "2022", status: "公式" },
+  { id: "f-commute-car", scope: "Scope 3", name: "通勤（自家用乗用車）", category: "通勤", unit: "人km", coefficient: 0.000130, source: "国交省 旅客輸送統計（CO2排出原単位）", region: "日本", year: "2022", status: "公式" }
+];
 
 const seedActivities = [];
 
@@ -236,6 +244,30 @@ document.addEventListener("input", (event) => {
   }
 });
 
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" || event.isComposing) return;
+  const target = event.target;
+  if (!target || !target.tagName) return;
+  if (target.tagName === "TEXTAREA" || target.tagName === "BUTTON" || target.tagName === "A") return;
+  if (target.dataset && target.dataset.draft) {
+    event.preventDefault();
+    saveActivityFromForm();
+    return;
+  }
+  if (target.id && target.id.startsWith("factor-")) {
+    event.preventDefault();
+    saveFactorFromForm();
+    return;
+  }
+  if (target.id === "github-token") {
+    event.preventDefault();
+    const value = target.value.trim();
+    setToken(value);
+    showToast(value ? "トークンを保存しました" : "トークンを削除しました", "success");
+    render();
+  }
+});
+
 document.addEventListener("change", (event) => {
   const field = event.target.closest("[data-draft],[data-setting]");
   if (!field) return;
@@ -308,6 +340,10 @@ function renderSidebar(route) {
 }
 
 function renderTopbar(screen) {
+  const sites = ["すべてのサイト", ...siteSuggestions()];
+  if (!sites.includes(state.settings.site)) sites.push(state.settings.site);
+  const periods = ["全期間", ...periodSuggestions()];
+  if (!periods.includes(state.settings.period)) periods.push(state.settings.period);
   return `
     <header class="topbar">
       <h1>${escapeHTML(screen.label)}</h1>
@@ -315,21 +351,27 @@ function renderTopbar(screen) {
         <div class="control">
           <label for="site-select">サイト・拠点</label>
           <select id="site-select" data-setting="site">
-            ${optionList(["すべてのサイト", "東京本社", "大阪工場", "名古屋工場", "福岡工場"], state.settings.site)}
+            ${optionList(sites, state.settings.site)}
           </select>
         </div>
         <div class="control">
           <label for="period-select">集計期間</label>
           <select id="period-select" data-setting="period">
-            ${optionList(["2026年4月", "2026年度", "2025年度", "2024年度"], state.settings.period)}
+            ${optionList(periods, state.settings.period)}
           </select>
         </div>
-        <button class="icon-button" aria-label="ヘルプ">${icon("help")}</button>
-        <button class="icon-button" aria-label="通知">${icon("bell")}</button>
-        <div class="avatar" aria-label="ユーザー">T</div>
+        <div class="avatar" aria-label="アカウント">T</div>
       </div>
     </header>
   `;
+}
+
+function siteSuggestions() {
+  return Array.from(new Set(activities.map((activity) => activity.site).filter(Boolean))).sort();
+}
+
+function periodSuggestions() {
+  return Array.from(new Set(activities.map((activity) => (activity.date || "").slice(0, 7)).filter(Boolean))).sort().reverse();
 }
 
 function renderMobileHeader(screen) {
@@ -337,8 +379,7 @@ function renderMobileHeader(screen) {
     <header class="mobile-header">
       <a class="brand" href="#dashboard"><span class="logo-mark"></span><span>S&amp;Carbon</span></a>
       <div style="display:flex; gap:8px;">
-        <button class="icon-button" aria-label="通知">${icon("bell")}</button>
-        <div class="avatar" aria-label="ユーザー">T</div>
+        <div class="avatar" aria-label="アカウント">T</div>
       </div>
     </header>
     <div class="mobile-title">
@@ -381,14 +422,17 @@ function renderScreen(route) {
 }
 
 function renderDashboard() {
+  if (activities.length === 0) return renderOnboarding();
   const totals = getScopeTotals();
   const total = totals.total;
+  const recent = activities.slice(-4).reverse();
+  const monthly = monthlyTotalsForChart(6);
   return `
     <div class="grid kpi">
       ${renderHeroMetric(total)}
-      ${renderScopeMetric("Scope 1", totals["Scope 1"], "5.1")}
-      ${renderScopeMetric("Scope 2", totals["Scope 2"], "10.3")}
-      ${renderScopeMetric("Scope 3", totals["Scope 3"], "11.8")}
+      ${renderScopeMetric("Scope 1", totals["Scope 1"])}
+      ${renderScopeMetric("Scope 2", totals["Scope 2"])}
+      ${renderScopeMetric("Scope 3", totals["Scope 3"])}
     </div>
     <div class="mobile-scope-strip" aria-label="Scope別内訳">
       ${["Scope 1", "Scope 2", "Scope 3"].map((scope) => `
@@ -402,51 +446,19 @@ function renderDashboard() {
     <div style="height:16px"></div>
     <div class="grid dashboard-mid">
       <article class="card card-pad">
-        <div class="section-title">
-          <h2>排出量の推移（CO2e）</h2>
-          <div class="tabs"><button class="chip is-active">月次</button><button class="chip">原単位</button></div>
-        </div>
-        ${renderLineChart()}
+        <div class="section-title"><h2>排出量の月次推移（直近6ヶ月）</h2></div>
+        ${renderActualLineChart(monthly)}
       </article>
       <article class="card card-pad">
-        <div class="section-title"><h2>カテゴリ別排出量（Scope 3）</h2><button class="ghost-button" data-route="analytics">詳細を見る</button></div>
-        ${renderDonut()}
-      </article>
-      <article class="card card-pad">
-        <div class="section-title"><h2>対応が必要なアラート</h2><span class="badge red">3件</span></div>
-        ${renderAlertRows(true)}
-      </article>
-    </div>
-    <div style="height:16px"></div>
-    <div class="grid three">
-      <article class="card card-pad">
-        <div class="section-title"><h2>削減目標の進捗</h2><button class="ghost-button" data-route="goals">編集</button></div>
-        <p>2030年度目標（2025年度比）</p>
-        <div class="metric-value positive">-30<small>%</small></div>
-        <div class="progress"><span style="width:42%"></span></div>
-        <p class="muted">目標まであと 18% / 残り -33,799 t-CO2e</p>
-      </article>
-      <article class="card card-pad">
-        <div class="section-title"><h2>原単位（全社平均）</h2><button class="ghost-button" data-route="factors">詳細を見る</button></div>
-        <div class="grid two">
-          <div>
-            <p>売上高原単位</p>
-            <div class="metric-value positive">12.45<small>t-CO2e/百万円</small></div>
-            <span class="positive">↓ 11.3%</span>
-          </div>
-          <div>
-            <p>生産量原単位</p>
-            <div class="metric-value positive">0.85<small>t-CO2e/台</small></div>
-            <span class="positive">↓ 9.7%</span>
-          </div>
-        </div>
+        <div class="section-title"><h2>カテゴリ別構成比</h2><button class="ghost-button" data-route="analytics">詳細を見る</button></div>
+        ${renderCategoryBreakdown()}
       </article>
       <article class="card card-pad">
         <div class="section-title"><h2>最近のアクティビティ</h2><button class="ghost-button" data-route="data-list">すべて見る</button></div>
         <div class="activity-list">
-          ${activities.slice(-4).reverse().map((activity) => {
+          ${recent.map((activity) => {
             const factor = getFactor(activity.factorId);
-            return `<div class="activity-row"><span><strong>${escapeHTML(factor?.name || "未設定データ")}</strong><small>${escapeHTML(activity.site)} / ${escapeHTML(activity.date)}</small></span><span class="badge green">${formatNumber(calcEmission(activity, factor))}</span></div>`;
+            return `<div class="activity-row"><span><strong>${escapeHTML(factor?.name || "未設定データ")}</strong><small>${escapeHTML(activity.site || "拠点未設定")} / ${escapeHTML(activity.date)}</small></span><span class="badge green">${formatNumber(calcEmission(activity, factor))}</span></div>`;
           }).join("")}
         </div>
       </article>
@@ -463,6 +475,96 @@ function renderDashboard() {
   `;
 }
 
+function renderOnboarding() {
+  return `
+    <article class="card card-pad onboarding">
+      <h2>S&Carbon へようこそ</h2>
+      <p>Scope 1・2・3 の活動量データと原単位から CO2 排出量を算定するライトな個人ツールです。最初の3ステップで使い始められます。</p>
+      <ol class="onboarding-steps">
+        <li>
+          <strong>1. 原単位を確認・追加</strong>
+          <p class="muted">電気・ガス・燃料・通勤などの初期原単位を ${factors.length} 件登録済みです。必要に応じて追加・編集できます。</p>
+          <button class="secondary-button" data-route="factors">${icon("layers")} 原単位を開く</button>
+        </li>
+        <li>
+          <strong>2. 活動データを入力</strong>
+          <p class="muted">原単位を選び、kWh / m³ / L / 人km などの活動量を入力すると、排出量が自動計算されます。</p>
+          <button class="primary-button" data-route="data-input">${icon("edit")} データを入力</button>
+        </li>
+        <li>
+          <strong>3. GitHub に保存（任意）</strong>
+          <p class="muted">設定画面で GitHub owner / repo / トークンを入力すると、リポジトリ内 JSON にバックアップできます。</p>
+          <button class="secondary-button" data-route="settings">${icon("gear")} 設定を開く</button>
+        </li>
+      </ol>
+    </article>
+  `;
+}
+
+function monthlyTotalsForChart(months) {
+  const buckets = new Map();
+  activities.forEach((activity) => {
+    const factor = getFactor(activity.factorId);
+    if (!factor) return;
+    const month = (activity.date || "").slice(0, 7);
+    if (!month) return;
+    buckets.set(month, (buckets.get(month) || 0) + calcEmission(activity, factor));
+  });
+  const sorted = Array.from(buckets.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  return sorted.slice(-months);
+}
+
+function renderActualLineChart(points) {
+  if (!points.length) {
+    return `<div class="empty-state"><p class="muted">日付付きの活動データを入力すると、月次推移が表示されます。</p></div>`;
+  }
+  const max = Math.max(...points.map(([, value]) => value), 1);
+  const width = 680;
+  const height = 200;
+  const padX = 36;
+  const stepX = points.length > 1 ? (width - padX * 2) / (points.length - 1) : 0;
+  const path = points.map(([, value], index) => {
+    const x = padX + stepX * index;
+    const y = height - 20 - (value / max) * (height - 60);
+    return `${index === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`;
+  }).join(" ");
+  return `
+    <svg class="line-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="月次排出量推移">
+      <line class="grid-line" x1="${padX}" y1="${height - 20}" x2="${width - padX}" y2="${height - 20}"></line>
+      <path class="series-a" d="${path}"></path>
+      ${points.map(([month, value], index) => {
+        const x = padX + stepX * index;
+        const y = height - 20 - (value / max) * (height - 60);
+        return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" fill="var(--primary)"></circle><text x="${x.toFixed(1)}" y="${height - 4}" text-anchor="middle" font-size="11">${escapeHTML(month)}</text>`;
+      }).join("")}
+    </svg>
+  `;
+}
+
+function renderCategoryBreakdown() {
+  const buckets = new Map();
+  activities.forEach((activity) => {
+    const factor = getFactor(activity.factorId);
+    if (!factor) return;
+    const key = factor.category || "未分類";
+    buckets.set(key, (buckets.get(key) || 0) + calcEmission(activity, factor));
+  });
+  if (!buckets.size) return `<div class="empty-state"><p class="muted">カテゴリ別の集計はまだありません。</p></div>`;
+  const total = Array.from(buckets.values()).reduce((sum, value) => sum + value, 0);
+  const rows = Array.from(buckets.entries()).sort((a, b) => b[1] - a[1]);
+  return `
+    <div class="bar-list">
+      ${rows.map(([category, value]) => `
+        <div class="bar-row">
+          <strong>${escapeHTML(category)}</strong>
+          <div class="bar" style="width:${Math.max(8, value / total * 100).toFixed(1)}%"></div>
+          <span>${formatNumber(value)} t-CO2e</span>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
 function renderHeroMetric(total, nested = false) {
   const tag = nested ? "div" : "article";
   const className = nested ? "metric-card hero-card" : "card metric-card hero-card";
@@ -473,16 +575,17 @@ function renderHeroMetric(total, nested = false) {
         <div class="metric-value">${formatNumber(total)}<small>t-CO2e</small></div>
       </div>
       <div class="metric-foot">
-        <span>前月比 ↓ 8.6%</span>
-        <span>前年比 ↓ 12.4%</span>
+        <span>登録活動データ：${activities.length}件</span>
+        <span>登録原単位：${factors.length}件</span>
         <span>集計期間：${escapeHTML(state.settings.period)}</span>
       </div>
     </${tag}>
   `;
 }
 
-function renderScopeMetric(scope, value, change) {
+function renderScopeMetric(scope, value) {
   const meta = scopeMeta[scope];
+  const total = getScopeTotals().total;
   return `
     <article class="card metric-card">
       <div>
@@ -496,8 +599,7 @@ function renderScopeMetric(scope, value, change) {
         <div class="metric-value">${formatNumber(value)}<small>t-CO2e</small></div>
       </div>
       <div class="metric-foot">
-        <span class="positive">↓ ${escapeHTML(change)}%</span>
-        <span>構成比 ${percent(value, getScopeTotals().total)}%</span>
+        <span>構成比 ${percent(value, total)}%</span>
       </div>
     </article>
   `;
@@ -560,7 +662,8 @@ function renderDataInput() {
           </label>
           <label class="field">
             <span>拠点</span>
-            <select data-draft="site">${optionList(["本社工場", "東京本社", "大阪工場", "名古屋工場", "福岡工場", "全社"], state.draft.site)}</select>
+            <input data-draft="site" list="site-suggestions" value="${escapeAttr(state.draft.site)}" placeholder="例：本社・通勤・自宅">
+            <datalist id="site-suggestions">${siteSuggestions().map((site) => `<option value="${escapeAttr(site)}"></option>`).join("")}</datalist>
           </label>
           <label class="field">
             <span>サプライヤー・設備</span>
@@ -745,58 +848,67 @@ function renderFactorForm(selected) {
 
 function renderAnalytics() {
   const totals = getScopeTotals();
+  if (!activities.length) {
+    return `
+      <div class="empty-state">
+        ${icon("chart")}
+        <h3>分析するデータがありません</h3>
+        <p class="muted">活動データを入力すると、Scope別・カテゴリ別・拠点別の集計と月次推移を表示します。</p>
+        <button class="primary-button" data-route="data-input">${icon("edit")} データを入力</button>
+      </div>
+    `;
+  }
+  const monthly = monthlyTotalsForChart(12);
   return `
     <div class="grid analytics">
       <article class="card card-pad span-3">
         <div class="metric-label">総排出量（CO2e）</div>
         <div class="metric-value">${formatNumber(totals.total)}<small>t-CO2e</small></div>
-        <span class="positive">↓ 12.4% 前年比</span>
+        <span class="muted">登録活動データ ${activities.length} 件</span>
       </article>
       ${["Scope 1", "Scope 2", "Scope 3"].map((scope) => `
         <article class="card card-pad span-3">
           <div class="metric-label">${escapeHTML(scope)}</div>
           <div class="metric-value">${formatNumber(totals[scope])}<small>t-CO2e</small></div>
-          <span class="positive">↓ ${scope === "Scope 1" ? "8.6" : scope === "Scope 2" ? "14.7" : "11.8"}%</span>
+          <span class="muted">構成比 ${percent(totals[scope], totals.total)}%</span>
         </article>
       `).join("")}
-      <article class="card card-pad span-4">
-        <div class="section-title"><h2>Scope別 トレンド比較</h2><button class="chip">月次</button></div>
-        ${renderLineChart(true)}
-      </article>
-      <article class="card card-pad span-4">
-        <div class="section-title"><h2>サイト別排出量比較</h2><button class="chip">総排出量</button></div>
-        ${renderBarList()}
-      </article>
-      <article class="card card-pad span-4">
-        <div class="section-title"><h2>カテゴリ別排出量（Scope 3）</h2><strong>${formatNumber(totals["Scope 3"])} t-CO2e</strong></div>
-        <div class="treemap">
-          <div class="tree-cell">購入した製品・サービス<br><small>42.1%</small></div>
-          <div class="tree-cell">資本財<br><small>17.3%</small></div>
-          <div class="tree-cell">燃料・エネルギー関連<br><small>11.8%</small></div>
-          <div class="tree-cell">出張<br><small>4.0%</small></div>
-          <div class="tree-cell">その他<br><small>10.7%</small></div>
-        </div>
-      </article>
       <article class="card card-pad span-8">
-        <div class="section-title"><h2>2030年目標に向けた予測シミュレーション</h2><span class="badge purple">AI予測 UI</span></div>
-        ${renderLineChart(true, "long")}
+        <div class="section-title"><h2>月次排出量の推移</h2></div>
+        ${renderActualLineChart(monthly)}
       </article>
       <article class="card card-pad span-4">
-        <div class="section-title"><h2>削減ポテンシャル上位カテゴリ</h2></div>
-        <div class="activity-list">
-          ${["エネルギー効率改善", "購入電力の再エネ切替", "輸送の最適化", "製品設計の見直し", "出張の低減"].map((label, index) => `
-            <div class="activity-row"><span><strong>${index + 1}. ${escapeHTML(label)}</strong><small>${1023 - index * 148} t-CO2e/年</small></span><span class="badge amber">効果大</span></div>
-          `).join("")}
-        </div>
+        <div class="section-title"><h2>拠点別排出量</h2></div>
+        ${renderSiteBreakdown()}
       </article>
       <article class="card card-pad span-12">
-        <div class="section-title"><h2>AIインサイト（自動分析）</h2><span class="badge purple">BETA</span></div>
-        <div class="grid three">
-          <div><strong>順調に削減が進んでいます</strong><p>総排出量は前年比12.4%減少し、2026年4月時点で目標トレンドを上回っています。</p></div>
-          <div><strong>Scope 2の改善が効果的です</strong><p>再エネ購入と省エネ施策により、Scope 2は前年比14.7%削減しました。</p></div>
-          <div><strong>カテゴリ別の注力ポイント</strong><p>「購入した製品・サービス」が全体の42.1%を占め、サプライヤー連携が鍵です。</p></div>
-        </div>
+        <div class="section-title"><h2>カテゴリ別排出量</h2></div>
+        ${renderCategoryBreakdown()}
       </article>
+    </div>
+  `;
+}
+
+function renderSiteBreakdown() {
+  const buckets = new Map();
+  activities.forEach((activity) => {
+    const factor = getFactor(activity.factorId);
+    if (!factor) return;
+    const site = activity.site || "未設定";
+    buckets.set(site, (buckets.get(site) || 0) + calcEmission(activity, factor));
+  });
+  if (!buckets.size) return `<div class="empty-state"><p class="muted">拠点別の集計はまだありません。</p></div>`;
+  const max = Math.max(...buckets.values(), 1);
+  const rows = Array.from(buckets.entries()).sort((a, b) => b[1] - a[1]);
+  return `
+    <div class="bar-list">
+      ${rows.map(([site, value]) => `
+        <div class="bar-row">
+          <strong>${escapeHTML(site)}</strong>
+          <div class="bar" style="width:${Math.max(8, value / max * 100).toFixed(1)}%"></div>
+          <span>${formatNumber(value)}</span>
+        </div>
+      `).join("")}
     </div>
   `;
 }
@@ -857,77 +969,83 @@ function renderReports() {
 function renderGoals() {
   const total = getScopeTotals().total;
   return `
-    <div class="grid two">
-      <section class="card card-pad">
-        <div class="section-title"><h2>2030年度削減目標</h2><button class="secondary-button">${icon("edit")} 編集</button></div>
-        <div class="grid three">
-          <div><p>基準年</p><div class="metric-value">2025<small>年度</small></div></div>
-          <div><p>削減目標</p><div class="metric-value positive">-30<small>%</small></div></div>
-          <div><p>現在排出量</p><div class="metric-value">${formatNumber(total)}<small>t</small></div></div>
-        </div>
-        <div style="height:18px"></div>
-        <div class="progress"><span style="width:42%"></span></div>
-        <p class="muted">進捗率 42% / 必要削減ペース 年平均 -2.4%</p>
-      </section>
-      <aside class="card card-pad">
-        <div class="section-title"><h2>予測</h2><span class="badge green">順調</span></div>
-        ${renderLineChart(false, "long")}
-      </aside>
-    </div>
-    <div style="height:16px"></div>
     <section class="card card-pad">
-      <div class="section-title"><h2>目標達成に必要な追加削減</h2></div>
-      <div class="grid three">
-        <div><strong>Scope 1</strong><p class="muted">燃料転換・設備更新</p><div class="metric-value">480<small>t</small></div></div>
-        <div><strong>Scope 2</strong><p class="muted">再エネ比率の引き上げ</p><div class="metric-value">620<small>t</small></div></div>
-        <div><strong>Scope 3</strong><p class="muted">購買先との協働</p><div class="metric-value">1,920<small>t</small></div></div>
+      <div class="section-title"><h2>削減目標</h2></div>
+      <p class="muted">削減目標と進捗管理は今後のアップデートで実装予定です。現状の総排出量は <strong>${formatNumber(total)} t-CO2e</strong> です。</p>
+      <div class="empty-state">
+        ${icon("target")}
+        <h3>目標は未設定です</h3>
+        <p class="muted">将来的に基準年・目標値・年次マイルストーンを登録できるようにします。</p>
       </div>
     </section>
   `;
 }
 
 function renderActions() {
-  const columns = [
-    { title: "検討中", items: ["サプライヤー別原単位の収集", "出張ルールの見直し"] },
-    { title: "実行中", items: ["高効率空調への更新", "再エネ電力メニュー切替"] },
-    { title: "完了", items: ["照明LED化", "軽油使用量の月次確認"] }
-  ];
   return `
     <section class="card card-pad">
-      <div class="section-title">
-        <div><h2>削減施策管理</h2><p>Scope別の削減アクションをライトに管理します。</p></div>
-        <button class="primary-button">${icon("plus")} 施策追加</button>
-      </div>
-      <div class="kanban">
-        ${columns.map((column) => `
-          <div class="kanban-column">
-            <header>${escapeHTML(column.title)}</header>
-            <div class="timeline">
-              ${column.items.map((item, index) => `
-                <div class="timeline-item">
-                  <strong>${escapeHTML(item)}</strong>
-                  <small>想定削減 ${280 + index * 120} t-CO2e/年</small>
-                  <span class="badge ${column.title === "完了" ? "green" : column.title === "実行中" ? "purple" : "amber"}">${escapeHTML(column.title)}</span>
-                </div>
-              `).join("")}
-            </div>
-          </div>
-        `).join("")}
+      <div class="section-title"><h2>削減施策管理</h2></div>
+      <p class="muted">削減施策のカンバン管理は今後のアップデートで実装予定です。</p>
+      <div class="empty-state">
+        ${icon("leaf")}
+        <h3>施策は未登録です</h3>
+        <p class="muted">検討中・実行中・完了の3カラムで施策を整理できるようにします。</p>
       </div>
     </section>
   `;
 }
 
 function renderAlerts() {
+  const alerts = computeAlerts();
   return `
     <section class="card card-pad">
       <div class="section-title">
-        <div><h2>アラート管理</h2><p>未入力、変動、原単位更新の確認画面です。</p></div>
-        <span class="badge red">3件対応待ち</span>
+        <div><h2>アラート</h2><p>登録データから自動検出した注意事項です。</p></div>
+        <span class="badge ${alerts.length ? "amber" : "green"}">${alerts.length}件</span>
       </div>
-      ${renderAlertRows(false)}
+      ${alerts.length ? `
+        <div class="alert-list">
+          ${alerts.map((alert) => `
+            <div class="alert-row">
+              <span>${icon("alert")}<span><strong>${escapeHTML(alert.title)}</strong><small>${escapeHTML(alert.detail)}</small></span></span>
+              <span class="badge ${alert.severity}">${escapeHTML(alert.label)}</span>
+            </div>
+          `).join("")}
+        </div>
+      ` : `
+        <div class="empty-state">
+          ${icon("bell")}
+          <h3>対応すべきアラートはありません</h3>
+          <p class="muted">原単位の status が「要確認」の項目や、未紐付けの活動データがあればここに表示します。</p>
+        </div>
+      `}
     </section>
   `;
+}
+
+function computeAlerts() {
+  const alerts = [];
+  factors.forEach((factor) => {
+    if (factor.status && factor.status !== "公式" && factor.status !== "カスタム") {
+      alerts.push({
+        title: `原単位「${factor.name}」の確認が必要`,
+        detail: `status: ${factor.status} / ${factor.region || "地域未設定"} / ${factor.year || "年度未設定"}`,
+        severity: "amber",
+        label: factor.status
+      });
+    }
+  });
+  activities.forEach((activity) => {
+    if (!getFactor(activity.factorId)) {
+      alerts.push({
+        title: "原単位が未設定の活動データ",
+        detail: `${activity.date || "日付未設定"} / ${activity.site || "拠点未設定"} / ID: ${activity.id}`,
+        severity: "red",
+        label: "要修正"
+      });
+    }
+  });
+  return alerts;
 }
 
 function renderSettings() {
@@ -1040,78 +1158,6 @@ function renderHistoryModal() {
   `;
 }
 
-function renderDonut() {
-  return `
-    <div class="donut-wrap">
-      <div class="donut"><strong>Scope 3<br>${formatNumber(getScopeTotals()["Scope 3"])}</strong></div>
-      <div class="legend">
-        <div class="legend-row"><span><i class="dot"></i>購入した製品・サービス</span><strong>42.1%</strong></div>
-        <div class="legend-row"><span><i class="dot green"></i>電力・エネルギー</span><strong>17.3%</strong></div>
-        <div class="legend-row"><span><i class="dot teal"></i>輸送・配送</span><strong>11.8%</strong></div>
-        <div class="legend-row"><span><i class="dot purple"></i>資本財</span><strong>7.6%</strong></div>
-        <div class="legend-row"><span><i class="dot amber"></i>その他</span><strong>21.2%</strong></div>
-      </div>
-    </div>
-  `;
-}
-
-function renderAlertRows(compact) {
-  const rows = [
-    ["データ未入力の期間があります", "関東工場・2026年4月（電力使用量）", "red"],
-    ["排出量の変動が大きい項目です", "軽油（自家発電） 前月比 +35.2%", "amber"],
-    ["原単位が未設定のデータがあります", "冷媒（R32）", "amber"]
-  ];
-  return `
-    <div class="alert-list">
-      ${rows.slice(0, compact ? 3 : rows.length).map((row) => `
-        <div class="alert-row">
-          <span>${icon("alert")}<span><strong>${escapeHTML(row[0])}</strong><small>${escapeHTML(row[1])}</small></span></span>
-          <span class="badge ${row[2]}">確認</span>
-        </div>
-      `).join("")}
-    </div>
-  `;
-}
-
-function renderLineChart(dark = false, variant = "short") {
-  const months = variant === "long" ? ["2023", "2024", "2025", "2026", "2027", "2028", "2029", "2030"] : ["5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月", "1月", "2月", "3月", "4月"];
-  const a = variant === "long" ? [150, 146, 132, 128, 117, 98, 76, 50] : [32, 34, 33, 36, 35, 32, 34, 34, 32, 35, 34, 36];
-  const b = variant === "long" ? [0, 0, 130, 126, 118, 104, 86, 61] : [18, 19, 18, 20, 20, 19, 20, 21, 20, 20, 21, 21];
-  const c = variant === "long" ? [0, 0, 132, 140, 155, 168, 176, 172] : [10, 11, 10, 11, 11, 10, 11, 10, 10, 11, 10, 10];
-  return `
-    <svg class="line-chart" viewBox="0 0 680 248" role="img" aria-label="排出量推移グラフ">
-      ${[36, 82, 128, 174, 220].map((y) => `<line class="grid-line" x1="42" y1="${y}" x2="656" y2="${y}"></line>`).join("")}
-      ${months.map((month, index) => `<text x="${52 + index * (590 / (months.length - 1))}" y="238" text-anchor="middle">${month}</text>`).join("")}
-      <path class="series-a" d="${linePath(a)}"></path>
-      <path class="series-b" d="${linePath(b)}"></path>
-      ${dark || variant === "long" ? `<path class="series-c" d="${linePath(c)}"></path>` : ""}
-      ${a.map((value, index) => `<circle cx="${pointX(index, a.length)}" cy="${pointY(value)}" r="4" fill="var(--primary)"></circle>`).join("")}
-      ${b.map((value, index) => `<circle cx="${pointX(index, b.length)}" cy="${pointY(value)}" r="4" fill="var(--green)"></circle>`).join("")}
-    </svg>
-  `;
-}
-
-function renderBarList() {
-  const rows = [
-    ["東京本社", 3210],
-    ["大阪工場", 2450],
-    ["名古屋工場", 1980],
-    ["福岡工場", 1620],
-    ["札幌オフィス", 1200]
-  ];
-  const max = Math.max(...rows.map((row) => row[1]));
-  return `
-    <div class="bar-list">
-      ${rows.map((row) => `
-        <div class="bar-row">
-          <strong>${escapeHTML(row[0])}</strong>
-          <div class="bar" style="width:${Math.max(18, row[1] / max * 100)}%"></div>
-          <span>${formatNumber(row[1])}</span>
-        </div>
-      `).join("")}
-    </div>
-  `;
-}
 
 function getScopeTotals() {
   const totals = { "Scope 1": 0, "Scope 2": 0, "Scope 3": 0 };
@@ -1664,19 +1710,6 @@ function badgeColor(scope) {
   if (scope === "Scope 2") return "green";
   if (scope === "Scope 3") return "purple";
   return "";
-}
-
-function pointX(index, length) {
-  return 52 + index * (590 / (length - 1));
-}
-
-function pointY(value) {
-  const max = 180;
-  return 220 - (value / max) * 184;
-}
-
-function linePath(values) {
-  return values.map((value, index) => `${index === 0 ? "M" : "L"} ${pointX(index, values.length)} ${pointY(value)}`).join(" ");
 }
 
 function escapeHTML(value) {
