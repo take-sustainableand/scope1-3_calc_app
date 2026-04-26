@@ -41,13 +41,16 @@ python3 -m json.tool data/scarbon-state.json > /dev/null
 # 軽量スモークテスト（依存ゼロ・XSS / ハードコード残存 / 集計ロジックの回帰検出）
 npm run test:smoke
 
-# Playwright による E2E（要 Chromium インストール）
+# DOM ハーネス（Node の vm モジュールで全画面描画を静的検証）
+npm run test:dom
+
+# Playwright による E2E
 npm install
-npx playwright install chromium
 npm test
 ```
 
-`npm test` は `playwright.config.js` の指定で `python3 -m http.server 8001` を一時起動して動作するので、別途サーバ起動は不要です。
+`npm test` は `playwright.config.js` の指定で `python3 -m http.server 8001` を一時起動して動作します（別途サーバ起動は不要）。
+ブラウザはシステムにインストール済みの **Google Chrome**（`channel: "chrome"`）を直接使う設定なので、`npx playwright install` は不要です。Chrome が無い環境では `npm run test:install` で Playwright バンドルの Chromium をインストールしてから `playwright.config.js` の `channel` 行を外してください。
 
 ## データの優先順位
 
