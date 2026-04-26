@@ -117,7 +117,7 @@ const scopeMeta = {
 const defaultSettings = {
   theme: "light",
   site: "すべてのサイト",
-  period: "2026年4月",
+  period: "全期間",
   githubOwner: "",
   githubRepo: "",
   githubBranch: "main",
@@ -136,7 +136,7 @@ const state = {
   selectedFactorId: "",
   toast: "",
   toastType: "info",
-  settings: mergeDefaults(defaultSettings, loadJSON(STORAGE_KEYS.settings, defaultSettings)),
+  settings: normalizeSettings(mergeDefaults(defaultSettings, loadJSON(STORAGE_KEYS.settings, defaultSettings))),
   remote: mergeDefaults(defaultRemote, loadJSON(STORAGE_KEYS.remote, defaultRemote)),
   history: [],
   historyOpen: false,
@@ -173,7 +173,7 @@ window.addEventListener("hashchange", () => {
 });
 
 document.addEventListener("click", (event) => {
-  const target = event.target.closest("[data-route],[data-scope],[data-factor-filter],[data-factor-id],[data-fill-factor],[data-save-entry],[data-add-factor],[data-theme],[data-export],[data-export-report],[data-seed-reset],[data-remote-action],[data-restore-sha],[data-close-history],[data-token-save],[data-token-clear],[data-delete-activity],[data-delete-factor],[data-export-legacy],[data-delete-legacy]");
+  const target = event.target.closest("[data-route],[data-scope],[data-factor-filter],[data-factor-id],[data-fill-factor],[data-save-entry],[data-add-factor],[data-theme],[data-export],[data-export-report],[data-seed-reset],[data-clear-activities],[data-remote-action],[data-restore-sha],[data-close-history],[data-token-save],[data-token-clear],[data-delete-activity],[data-delete-factor],[data-export-legacy],[data-delete-legacy]");
   if (!target) return;
 
   if (target.dataset.route) {
@@ -237,15 +237,32 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  if (target.dataset.clearActivities !== undefined) {
+    if (!ensureWritable()) return;
+    if (!window.confirm("活動データをすべて削除します（原単位は残ります）。よろしいですか？")) return;
+    activities = [];
+    state.draft = { factorId: state.draft.factorId, amount: "", site: "", supplier: "", date: "", memo: "" };
+    persist();
+    showToast("活動データを削除しました", "success");
+    render();
+    return;
+  }
+
   if (target.dataset.seedReset !== undefined) {
-    if (!window.confirm("登録した原単位と活動データをすべて削除します。よろしいですか？")) return;
+    if (!ensureWritable()) return;
+    if (!window.confirm("ローカルの factors / activities を削除し、シードデータから再起動します。よろしいですか？")) return;
+    try {
+      localStorage.removeItem(STORAGE_KEYS.factors);
+      localStorage.removeItem(STORAGE_KEYS.activities);
+    } catch (error) {}
     factors = [];
     activities = [];
     state.selectedFactorId = "";
     state.draft = { factorId: "", amount: "", site: "", supplier: "", date: "", memo: "" };
-    persist();
-    showToast("登録データを削除しました", "success");
-    render();
+    bootstrapData().then(() => {
+      showToast("シードデータから再起動しました", "success");
+      render();
+    });
     return;
   }
 
@@ -284,6 +301,7 @@ document.addEventListener("click", (event) => {
   }
 
   if (target.dataset.deleteActivity) {
+    if (!ensureWritable()) return;
     if (!window.confirm("この活動データを削除します。よろしいですか？")) return;
     activities = activities.filter((activity) => activity.id !== target.dataset.deleteActivity);
     persist();
@@ -304,6 +322,10 @@ document.addEventListener("click", (event) => {
   }
 
   if (target.dataset.deleteLegacy !== undefined) {
+    if (legacyMigrationResult.backupFailed) {
+      showToast("読み取り専用モード中はバックアップ操作を実行できません。再読込後にお試しください。", "error");
+      return;
+    }
     if (!window.confirm("v1 のバックアップを完全に削除します。よろしいですか？")) return;
     try { localStorage.removeItem(LEGACY_BACKUP_KEY); } catch (error) {}
     showToast("v1 バックアップを削除しました", "success");
@@ -318,6 +340,7 @@ document.addEventListener("click", (event) => {
       showToast("この原単位は活動データで使用中のため削除できません", "error");
       return;
     }
+    if (!ensureWritable()) return;
     if (!window.confirm("この原単位を削除します。よろしいですか？")) return;
     factors = factors.filter((factor) => factor.id !== id);
     if (state.selectedFactorId === id) state.selectedFactorId = factors[0]?.id || "";
@@ -384,15 +407,17 @@ document.addEventListener("change", (event) => {
 async function bootstrapData() {
   // 移行のバックアップ保存に失敗したときは、 v2 を seed で汚染しない（次回ロードで v1→v2 を再試行できるように温存）。
   if (legacyMigrationResult.backupFailed) return;
-  const hasLocalFactors = localStorage.getItem(STORAGE_KEYS.factors);
-  const hasLocalActivities = localStorage.getItem(STORAGE_KEYS.activities);
-  if (hasLocalFactors && hasLocalActivities) return;
+  // 「factors が 0 件」なら（過去のリセット操作で空配列が永続化されているケースも含めて） seed を取り直す。
+  // activities はユーザーが意図的に空にした可能性が高いため、現状を尊重。
+  if (factors.length > 0) return;
   try {
     const response = await fetch(state.settings.dataPath, { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     if (Array.isArray(data.factors) && data.factors.length) factors = data.factors;
-    if (Array.isArray(data.activities) && data.activities.length) activities = data.activities;
+    if (activities.length === 0 && Array.isArray(data.activities) && data.activities.length) {
+      activities = data.activities;
+    }
     persist();
     render();
   } catch (error) {
@@ -524,7 +549,7 @@ function renderDashboard() {
   if (activities.length === 0) return renderOnboarding();
   const totals = getScopeTotals();
   const total = totals.total;
-  const recent = activities.slice(-4).reverse();
+  const recent = filteredActivities().slice(-4).reverse();
   const monthly = monthlyTotalsForChart(6);
   return `
     <div class="grid kpi">
@@ -555,10 +580,10 @@ function renderDashboard() {
       <article class="card card-pad">
         <div class="section-title"><h2>最近のアクティビティ</h2><button class="ghost-button" data-route="data-list">すべて見る</button></div>
         <div class="activity-list">
-          ${recent.map((activity) => {
+          ${recent.length ? recent.map((activity) => {
             const factor = getFactor(activity.factorId);
             return `<div class="activity-row"><span><strong>${escapeHTML(factor?.name || "未設定データ")}</strong><small>${escapeHTML(activity.site || "拠点未設定")} / ${escapeHTML(activity.date)}</small></span><span class="badge green">${formatNumber(calcEmission(activity, factor))}</span></div>`;
-          }).join("")}
+          }).join("") : `<p class="muted">フィルタ条件に一致する活動データはありません。</p>`}
         </div>
       </article>
     </div>
@@ -602,7 +627,7 @@ function renderOnboarding() {
 
 function monthlyTotalsForChart(months) {
   const buckets = new Map();
-  activities.forEach((activity) => {
+  filteredActivities().forEach((activity) => {
     const factor = getFactor(activity.factorId);
     if (!factor) return;
     const month = (activity.date || "").slice(0, 7);
@@ -642,7 +667,7 @@ function renderActualLineChart(points) {
 
 function renderCategoryBreakdown() {
   const buckets = new Map();
-  activities.forEach((activity) => {
+  filteredActivities().forEach((activity) => {
     const factor = getFactor(activity.factorId);
     if (!factor) return;
     const key = factor.category || "未分類";
@@ -990,7 +1015,7 @@ function renderAnalytics() {
 
 function renderSiteBreakdown() {
   const buckets = new Map();
-  activities.forEach((activity) => {
+  filteredActivities().forEach((activity) => {
     const factor = getFactor(activity.factorId);
     if (!factor) return;
     const site = activity.site || "未設定";
@@ -1210,7 +1235,8 @@ function renderSettings() {
         <p class="muted">ローカル状態の操作です。</p>
         <div class="tabs">
           <button class="secondary-button" data-export>${icon("download")} JSON出力</button>
-          <button class="secondary-button" data-seed-reset>${icon("refresh")} 全データを削除</button>
+          <button class="secondary-button" data-clear-activities>${icon("refresh")} 活動データのみ削除</button>
+          <button class="secondary-button" data-seed-reset>${icon("refresh")} シードに戻す（factors / activities をリセット）</button>
         </div>
       </section>
       ${renderLegacyBackupSection()}
@@ -1279,9 +1305,22 @@ function renderHistoryModal() {
 }
 
 
+function filteredActivities() {
+  let result = activities;
+  const site = state.settings.site;
+  if (site && site !== "すべてのサイト") {
+    result = result.filter((a) => a.site === site);
+  }
+  const period = state.settings.period;
+  if (period && period !== "全期間" && /^\d{4}-\d{2}$/.test(period)) {
+    result = result.filter((a) => (a.date || "").startsWith(period));
+  }
+  return result;
+}
+
 function getScopeTotals() {
   const totals = { "Scope 1": 0, "Scope 2": 0, "Scope 3": 0 };
-  activities.forEach((activity) => {
+  filteredActivities().forEach((activity) => {
     const factor = getFactor(activity.factorId);
     if (!factor) return;
     totals[factor.scope] += calcEmission(activity, factor);
@@ -1313,6 +1352,7 @@ function formatFormula(factor) {
 }
 
 function saveActivityFromForm() {
+  if (!ensureWritable()) return;
   const factorId = valueOf("[data-draft='factorId']");
   const amount = Number(valueOf("[data-draft='amount']"));
   if (!factorId) {
@@ -1343,6 +1383,7 @@ function saveActivityFromForm() {
 }
 
 function saveFactorFromForm() {
+  if (!ensureWritable()) return;
   const name = valueOf("#factor-name").trim();
   const scope = valueOf("#factor-scope") || "Scope 1";
   const category = valueOf("#factor-category").trim() || "未分類";
@@ -1523,6 +1564,14 @@ function loadInitialCollection(currentKey, legacyKey, fallback) {
   return loadJSON(currentKey, fallback);
 }
 
+function ensureWritable() {
+  if (legacyMigrationResult.backupFailed) {
+    showToast("読み取り専用モードのため変更を保存できません。ブラウザのストレージ容量を空けて再読込してください。", "error");
+    return false;
+  }
+  return true;
+}
+
 function getLegacyBackup() {
   try {
     const raw = localStorage.getItem(LEGACY_BACKUP_KEY);
@@ -1543,6 +1592,15 @@ function loadJSON(key, fallback) {
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function normalizeSettings(settings) {
+  // 旧バージョン (defaultSettings.period = "2026年4月") の永続化値を「全期間」に巻き戻す。
+  // periodSuggestions は YYYY-MM 形式しか返さないため、表示と集計の不一致を防ぐ。
+  if (settings.period && settings.period !== "全期間" && !/^\d{4}-\d{2}$/.test(settings.period)) {
+    settings.period = "全期間";
+  }
+  return settings;
 }
 
 function mergeDefaults(defaults, value) {
@@ -1667,6 +1725,7 @@ function applyRemoteContent(payload, sha) {
 
 async function pullFromGithub() {
   if (state.busy) return;
+  if (!ensureWritable()) return;
   let config;
   try {
     config = ensureGithubConfig();
@@ -1696,6 +1755,7 @@ async function pullFromGithub() {
 
 async function pushToGithub(options = {}) {
   if (state.busy) return;
+  if (!ensureWritable()) return;
   let config;
   try {
     config = ensureGithubConfig();
@@ -1760,6 +1820,7 @@ async function loadHistory() {
 
 async function restoreFromCommit(sha) {
   if (state.busy || !sha) return;
+  if (!ensureWritable()) return;
   let config;
   try {
     config = ensureGithubConfig();

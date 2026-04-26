@@ -105,6 +105,25 @@ check("backupFailed のとき persist が抑止される", /function persist\(\)
 check("backupFailed のとき persistSettings が抑止される", /function persistSettings\(\)\s*\{[\s\S]{0,100}legacyMigrationResult\.backupFailed[\s\S]{0,40}return/.test(src));
 check("backupFailed のとき loadInitialCollection が v1 を読みに行く", /function loadInitialCollection\([\s\S]{0,300}legacyMigrationResult\.backupFailed[\s\S]{0,200}localStorage\.getItem\(legacyKey\)/.test(src));
 check("読み取り専用モードを toast で告知", /読み取り専用モード/.test(src));
+check("ensureWritable ガード関数が定義されている", /function ensureWritable\(\)/.test(src));
+check("saveActivityFromForm の冒頭で ensureWritable", /function saveActivityFromForm\(\)\s*\{\s*if \(!ensureWritable\(\)\)/.test(src));
+check("saveFactorFromForm の冒頭で ensureWritable", /function saveFactorFromForm\(\)\s*\{\s*if \(!ensureWritable\(\)\)/.test(src));
+check("pullFromGithub に ensureWritable ガード", /async function pullFromGithub\(\)[\s\S]{0,120}ensureWritable\(\)/.test(src));
+check("pushToGithub に ensureWritable ガード", /async function pushToGithub\([^)]*\)[\s\S]{0,120}ensureWritable\(\)/.test(src));
+check("restoreFromCommit に ensureWritable ガード", /async function restoreFromCommit\([^)]*\)[\s\S]{0,120}ensureWritable\(\)/.test(src));
+check("delete-activity ハンドラに ensureWritable", /target\.dataset\.deleteActivity[\s\S]{0,80}ensureWritable\(\)/.test(src));
+check("delete-factor ハンドラに ensureWritable", /target\.dataset\.deleteFactor[\s\S]{0,300}ensureWritable\(\)/.test(src));
+check("seed-reset ハンドラに ensureWritable", /target\.dataset\.seedReset[\s\S]{0,80}ensureWritable\(\)/.test(src));
+check("filteredActivities ヘルパーが定義されている", /function filteredActivities\(\)/.test(src));
+check("getScopeTotals が filteredActivities を使う", /function getScopeTotals\(\)[\s\S]{0,200}filteredActivities\(\)/.test(src));
+check("monthlyTotalsForChart が filteredActivities を使う", /function monthlyTotalsForChart\([\s\S]{0,200}filteredActivities\(\)/.test(src));
+check("renderCategoryBreakdown が filteredActivities を使う", /function renderCategoryBreakdown\(\)[\s\S]{0,200}filteredActivities\(\)/.test(src));
+check("renderSiteBreakdown が filteredActivities を使う", /function renderSiteBreakdown\(\)[\s\S]{0,200}filteredActivities\(\)/.test(src));
+check("normalizeSettings が定義されている", /function normalizeSettings\(/.test(src));
+check("defaultSettings.period の初期値が「全期間」", /period: "全期間"/.test(src));
+check("data-clear-activities ハンドラが定義されている", /target\.dataset\.clearActivities/.test(src));
+check("data-seed-reset がシードに戻すボタンに進化（removeItem ベース）", /target\.dataset\.seedReset[\s\S]{0,300}localStorage\.removeItem\(STORAGE_KEYS\.factors\)/.test(src));
+check("bootstrapData は factors.length===0 で fetch する", /function bootstrapData\(\)[\s\S]{0,400}factors\.length > 0/.test(src));
 
 // GitHub API 関連
 check("githubGetContents 定義あり", /async function githubGetContents\(/.test(src));

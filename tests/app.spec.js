@@ -120,7 +120,37 @@ test("シード原単位が data/scarbon-state.json から取得される", asyn
   await page.locator('[data-route="factors"]').first().click();
   await expect(page.getByText("電力（日本・全国平均）")).toBeVisible();
   await expect(page.getByText("都市ガス（13A）")).toBeVisible();
+  await expect(page.getByText("LPG（プロパン）")).toBeVisible();
+  await expect(page.getByText("灯油").first()).toBeVisible();
   await expect(page.getByText("通勤（鉄道）")).toBeVisible();
+});
+
+test("過去に factors を空配列で永続化していても seed が再ロードされる", async ({ page }) => {
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem("scarbon:factors:v2", JSON.stringify([]));
+      localStorage.setItem("scarbon:activities:v2", JSON.stringify([]));
+    } catch (error) {}
+  });
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  await page.locator('[data-route="factors"]').first().click();
+  // 「原単位がまだありません」ではなくシードが復活している
+  await expect(page.getByText("電力（日本・全国平均）")).toBeVisible();
+  await expect(page.getByText("LPG（プロパン）")).toBeVisible();
+});
+
+test("旧 settings.period (2026年4月) が起動時に「全期間」へ正規化される", async ({ page }) => {
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem("scarbon:settings:v2", JSON.stringify({ theme: "light", site: "すべてのサイト", period: "2026年4月", githubOwner: "", githubRepo: "", githubBranch: "main", dataPath: "data/scarbon-state.json" }));
+    } catch (error) {}
+  });
+  await page.goto("/#dashboard");
+  await page.waitForLoadState("networkidle");
+  // topbar の select の選択値が「全期間」
+  const periodValue = await page.evaluate(() => document.querySelector("#period-select")?.value);
+  expect(periodValue).toBe("全期間");
 });
 
 test("活動データを入力 → 一覧に出る → 削除できる", async ({ page }) => {
