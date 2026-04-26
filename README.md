@@ -15,7 +15,7 @@ GitHub Pages 上で動く、Scope 1・2・3 の温室効果ガス排出量算定
 ├── styles.css
 ├── app.js
 ├── data/
-│   └── scarbon-state.json   # 配信される初期データ（factors / activities）
+│   └── scarbon-state.json   # 配信される初期データ（現在は factors / activities とも空）
 ├── docs/
 │   └── design-plan.md       # 設計ドキュメント・実装Plan
 └── README.md
@@ -44,18 +44,22 @@ python3 -m json.tool data/scarbon-state.json > /dev/null
 
 1. `localStorage` に過去の編集データがある → そのデータを使う
 2. なければ `data/scarbon-state.json` を `fetch()` する
-3. それも失敗したら、コード内のシードデータを使う
+3. それも失敗したら空状態で起動（factors / activities とも空配列）
 
 GitHub からの読み込み・保存は設定画面のボタンから明示的に実行します（自動同期はしません）。
 
+### 全データの削除
+
+設定画面 → 開発用 → **全データを削除** で `localStorage` の factors / activities を空に戻せます。トークンや GitHub 接続情報、テーマ設定は残ります（トークンは別ボタンで削除できます）。
+
 ## GitHub Pages へのデプロイ
 
-このリポジトリは <https://github.com/take-sustainableand/scope1-3_calc_app> をホストとして利用する想定です。
+このリポジトリは <https://github.com/take/scope1-3_calc_app> をホストとして利用する想定です。
 
 1. GitHub のリポジトリ画面で **Settings → Pages** を開く
 2. **Source** を `Deploy from a branch` に設定
 3. **Branch** を `main` の `/ (root)` に設定して保存
-4. 数十秒〜数分後に `https://take-sustainableand.github.io/scope1-3_calc_app/` が公開される
+4. 数十秒〜数分後に `https://take.github.io/scope1-3_calc_app/` が公開される
 
 サブパス配信（`/scope1-3_calc_app/`）でも CSS / JS は相対パスで動作します。
 
@@ -78,7 +82,7 @@ Fine-grained personal access token を強く推奨します。
 
 | 項目 | 値の例 |
 | --- | --- |
-| GitHub owner | `take-sustainableand` |
+| GitHub owner | `take` |
 | GitHub repo | `scope1-3_calc_app` |
 | ブランチ | `main` |
 | データ保存パス | `data/scarbon-state.json` |

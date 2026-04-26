@@ -25,28 +25,9 @@ const screens = [
 
 const mobileScreens = ["dashboard", "data-list", "data-input", "analytics", "settings"];
 
-const seedFactors = [
-  { id: "f-electricity", scope: "Scope 2", name: "電力（日本）", category: "電力", unit: "kWh", coefficient: 0.000456, source: "手動登録", region: "日本（全国平均）", year: "2023", status: "公式" },
-  { id: "f-citygas", scope: "Scope 1", name: "都市ガス（13A）", category: "燃料", unit: "m3", coefficient: 0.00223, source: "手動登録", region: "日本", year: "2023", status: "公式" },
-  { id: "f-gasoline", scope: "Scope 1", name: "ガソリン", category: "燃料", unit: "L", coefficient: 0.00232, source: "手動登録", region: "日本", year: "2023", status: "公式" },
-  { id: "f-diesel", scope: "Scope 1", name: "軽油", category: "燃料", unit: "L", coefficient: 0.00258, source: "手動登録", region: "日本", year: "2023", status: "公式" },
-  { id: "f-heavy", scope: "Scope 1", name: "A重油", category: "燃料", unit: "L", coefficient: 0.00271, source: "手動登録", region: "日本", year: "2023", status: "公式" },
-  { id: "f-purchased", scope: "Scope 3", name: "購入した製品・サービス", category: "購入", unit: "百万円", coefficient: 0.42, source: "カスタム", region: "日本", year: "2026", status: "カスタム" },
-  { id: "f-transport", scope: "Scope 3", name: "トラック輸送（10t）", category: "輸送・配送", unit: "t-km", coefficient: 0.192, source: "カスタム", region: "日本", year: "2026", status: "カスタム" },
-  { id: "f-waste", scope: "Scope 3", name: "廃棄物（混合廃棄物）", category: "廃棄物", unit: "t", coefficient: 0.456, source: "手動登録", region: "日本", year: "2021", status: "要確認" },
-  { id: "f-capital", scope: "Scope 3", name: "資本財", category: "資本財", unit: "百万円", coefficient: 5.2, source: "カスタム", region: "日本", year: "2026", status: "カスタム" }
-];
+const seedFactors = [];
 
-const seedActivities = [
-  { id: "a-001", factorId: "f-citygas", amount: 350000, site: "東京本社", supplier: "東京ガス株式会社", date: "2026-04-30", memo: "ボイラー燃料" },
-  { id: "a-002", factorId: "f-gasoline", amount: 260000, site: "営業部車両", supplier: "共通購買", date: "2026-04-28", memo: "社用車" },
-  { id: "a-003", factorId: "f-diesel", amount: 372000, site: "物流センター", supplier: "共通購買", date: "2026-04-25", memo: "非常用発電機" },
-  { id: "a-004", factorId: "f-electricity", amount: 7039474, site: "全拠点", supplier: "電力会社", date: "2026-04-30", memo: "電力使用量" },
-  { id: "a-005", factorId: "f-purchased", amount: 13800, site: "全社", supplier: "主要サプライヤー", date: "2026-04-30", memo: "購買データ" },
-  { id: "a-006", factorId: "f-transport", amount: 3200, site: "大阪工場", supplier: "物流パートナー", date: "2026-04-26", memo: "上流輸送" },
-  { id: "a-007", factorId: "f-waste", amount: 450, site: "名古屋工場", supplier: "処理会社", date: "2026-04-20", memo: "産業廃棄物" },
-  { id: "a-008", factorId: "f-capital", amount: 33, site: "福岡工場", supplier: "設備ベンダー", date: "2026-04-18", memo: "設備購入" }
-];
+const seedActivities = [];
 
 const scopeMeta = {
   "Scope 1": { color: "primary", icon: "factory", label: "直接排出" },
@@ -73,7 +54,7 @@ const state = {
   route: readRoute(),
   scope: "Scope 1",
   factorFilter: "すべて",
-  selectedFactorId: "f-electricity",
+  selectedFactorId: "",
   toast: "",
   toastType: "info",
   settings: mergeDefaults(defaultSettings, loadJSON(STORAGE_KEYS.settings, defaultSettings)),
@@ -82,12 +63,12 @@ const state = {
   historyOpen: false,
   busy: false,
   draft: {
-    factorId: "f-citygas",
-    amount: 1250,
-    site: "本社工場",
-    supplier: "東京ガス株式会社",
-    date: "2026-04-30",
-    memo: "ボイラーAの使用分"
+    factorId: "",
+    amount: "",
+    site: "",
+    supplier: "",
+    date: "",
+    memo: ""
   }
 };
 
@@ -171,11 +152,13 @@ document.addEventListener("click", (event) => {
   }
 
   if (target.dataset.seedReset !== undefined) {
-    if (!window.confirm("登録データを破棄してサンプルデータに戻します。よろしいですか？")) return;
-    factors = seedFactors.map((factor) => ({ ...factor }));
-    activities = seedActivities.map((activity) => ({ ...activity }));
+    if (!window.confirm("登録した原単位と活動データをすべて削除します。よろしいですか？")) return;
+    factors = [];
+    activities = [];
+    state.selectedFactorId = "";
+    state.draft = { factorId: "", amount: "", site: "", supplier: "", date: "", memo: "" };
     persist();
-    showToast("サンプルデータに戻しました", "success");
+    showToast("登録データを削除しました", "success");
     render();
     return;
   }
@@ -290,11 +273,10 @@ function render() {
   const app = document.querySelector("#app");
   const route = validRoute(state.route);
   const screen = screens.find((item) => item.id === route);
-  const analysisMode = route === "analytics" ? "analysis-mode" : "";
   app.innerHTML = `
     <div class="app-shell">
       ${renderSidebar(route)}
-      <main class="workspace ${analysisMode}">
+      <main class="workspace">
         ${renderTopbar(screen)}
         ${renderMobileHeader(screen)}
         <section class="content">${renderScreen(route)}</section>
@@ -344,7 +326,7 @@ function renderTopbar(screen) {
         </div>
         <button class="icon-button" aria-label="ヘルプ">${icon("help")}</button>
         <button class="icon-button" aria-label="通知">${icon("bell")}</button>
-        <div class="avatar" aria-label="ユーザー">山</div>
+        <div class="avatar" aria-label="ユーザー">T</div>
       </div>
     </header>
   `;
@@ -356,7 +338,7 @@ function renderMobileHeader(screen) {
       <a class="brand" href="#dashboard"><span class="logo-mark"></span><span>S&amp;Carbon</span></a>
       <div style="display:flex; gap:8px;">
         <button class="icon-button" aria-label="通知">${icon("bell")}</button>
-        <div class="avatar" aria-label="ユーザー">山</div>
+        <div class="avatar" aria-label="ユーザー">T</div>
       </div>
     </header>
     <div class="mobile-title">
@@ -566,7 +548,7 @@ function renderDataInput() {
           </label>
           <label class="field">
             <span>活動量</span>
-            <input data-draft="amount" type="number" min="0" step="0.01" value="${escapeAttr(state.draft.amount)}">
+            <input data-draft="amount" type="number" min="0" step="0.01" value="${escapeAttr(state.draft.amount)}" placeholder="例：1250">
           </label>
           <label class="field">
             <span>単位</span>
@@ -765,27 +747,27 @@ function renderAnalytics() {
   const totals = getScopeTotals();
   return `
     <div class="grid analytics">
-      <article class="card card-pad dark-card span-3">
+      <article class="card card-pad span-3">
         <div class="metric-label">総排出量（CO2e）</div>
         <div class="metric-value">${formatNumber(totals.total)}<small>t-CO2e</small></div>
         <span class="positive">↓ 12.4% 前年比</span>
       </article>
       ${["Scope 1", "Scope 2", "Scope 3"].map((scope) => `
-        <article class="card card-pad dark-card span-3">
+        <article class="card card-pad span-3">
           <div class="metric-label">${escapeHTML(scope)}</div>
           <div class="metric-value">${formatNumber(totals[scope])}<small>t-CO2e</small></div>
           <span class="positive">↓ ${scope === "Scope 1" ? "8.6" : scope === "Scope 2" ? "14.7" : "11.8"}%</span>
         </article>
       `).join("")}
-      <article class="card card-pad dark-card span-4">
+      <article class="card card-pad span-4">
         <div class="section-title"><h2>Scope別 トレンド比較</h2><button class="chip">月次</button></div>
         ${renderLineChart(true)}
       </article>
-      <article class="card card-pad dark-card span-4">
+      <article class="card card-pad span-4">
         <div class="section-title"><h2>サイト別排出量比較</h2><button class="chip">総排出量</button></div>
         ${renderBarList()}
       </article>
-      <article class="card card-pad dark-card span-4">
+      <article class="card card-pad span-4">
         <div class="section-title"><h2>カテゴリ別排出量（Scope 3）</h2><strong>${formatNumber(totals["Scope 3"])} t-CO2e</strong></div>
         <div class="treemap">
           <div class="tree-cell">購入した製品・サービス<br><small>42.1%</small></div>
@@ -795,11 +777,11 @@ function renderAnalytics() {
           <div class="tree-cell">その他<br><small>10.7%</small></div>
         </div>
       </article>
-      <article class="card card-pad dark-card span-8">
+      <article class="card card-pad span-8">
         <div class="section-title"><h2>2030年目標に向けた予測シミュレーション</h2><span class="badge purple">AI予測 UI</span></div>
         ${renderLineChart(true, "long")}
       </article>
-      <article class="card card-pad dark-card span-4">
+      <article class="card card-pad span-4">
         <div class="section-title"><h2>削減ポテンシャル上位カテゴリ</h2></div>
         <div class="activity-list">
           ${["エネルギー効率改善", "購入電力の再エネ切替", "輸送の最適化", "製品設計の見直し", "出張の低減"].map((label, index) => `
@@ -807,7 +789,7 @@ function renderAnalytics() {
           `).join("")}
         </div>
       </article>
-      <article class="card card-pad dark-card span-12">
+      <article class="card card-pad span-12">
         <div class="section-title"><h2>AIインサイト（自動分析）</h2><span class="badge purple">BETA</span></div>
         <div class="grid three">
           <div><strong>順調に削減が進んでいます</strong><p>総排出量は前年比12.4%減少し、2026年4月時点で目標トレンドを上回っています。</p></div>
@@ -968,7 +950,7 @@ function renderSettings() {
       <section class="card card-pad">
         <div class="section-title"><h2>GitHub 保存先</h2><span class="badge ${remoteReady ? "green" : "amber"}">${remoteReady ? "設定済み" : "未設定"}</span></div>
         <div class="settings-list">
-          <label class="field"><span>GitHub owner</span><input data-setting="githubOwner" value="${escapeAttr(state.settings.githubOwner)}" placeholder="例：take-sustainableand"></label>
+          <label class="field"><span>GitHub owner</span><input data-setting="githubOwner" value="${escapeAttr(state.settings.githubOwner)}" placeholder="例：take"></label>
           <label class="field"><span>GitHub repo</span><input data-setting="githubRepo" value="${escapeAttr(state.settings.githubRepo)}" placeholder="例：scope1-3_calc_app"></label>
           <label class="field"><span>ブランチ</span><input data-setting="githubBranch" value="${escapeAttr(state.settings.githubBranch || "main")}" placeholder="main"></label>
           <label class="field"><span>データ保存パス</span><input data-setting="dataPath" value="${escapeAttr(state.settings.dataPath)}"></label>
@@ -1011,7 +993,7 @@ function renderSettings() {
         <p class="muted">ローカル状態の操作です。</p>
         <div class="tabs">
           <button class="secondary-button" data-export>${icon("download")} JSON出力</button>
-          <button class="secondary-button" data-seed-reset>${icon("refresh")} 初期化</button>
+          <button class="secondary-button" data-seed-reset>${icon("refresh")} 全データを削除</button>
         </div>
       </section>
     </div>

@@ -84,8 +84,7 @@ button {
   backdrop-filter: blur(16px);
 }
 
-:root[data-theme="dark"] .sidebar,
-.analysis-mode .sidebar {
+:root[data-theme="dark"] .sidebar {
   background: rgba(7, 17, 29, 0.92);
 }
 
@@ -182,13 +181,6 @@ button {
   grid-template-rows: auto 1fr;
 }
 
-.workspace.analysis-mode {
-  background:
-    radial-gradient(circle at 80% 10%, rgba(47, 135, 255, 0.18), transparent 28%),
-    linear-gradient(135deg, #07111d 0%, #101b27 48%, #0c2229 100%);
-  color: #f4f8ff;
-}
-
 .topbar {
   position: sticky;
   top: 0;
@@ -204,8 +196,7 @@ button {
   backdrop-filter: blur(18px);
 }
 
-:root[data-theme="dark"] .topbar,
-.analysis-mode .topbar {
+:root[data-theme="dark"] .topbar {
   background: rgba(8, 17, 29, 0.82);
 }
 
@@ -999,20 +990,6 @@ button {
   display: none;
 }
 
-.dark-card {
-  background: linear-gradient(145deg, rgba(20, 33, 49, 0.96), rgba(16, 29, 42, 0.96));
-  border-color: rgba(126, 152, 181, 0.24);
-  color: #f4f8ff;
-  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.24);
-}
-
-.dark-card .muted,
-.dark-card p,
-.dark-card small,
-.dark-card .metric-label {
-  color: #9eafc6;
-}
-
 .treemap {
   min-height: 256px;
   display: grid;
@@ -1425,8 +1402,7 @@ button {
     backdrop-filter: blur(18px);
   }
 
-  :root[data-theme="dark"] .mobile-tabbar,
-  .analysis-mode .mobile-tabbar {
+  :root[data-theme="dark"] .mobile-tabbar {
     background: rgba(8, 17, 29, 0.92);
   }
 
