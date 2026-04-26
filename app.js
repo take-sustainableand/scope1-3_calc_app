@@ -124,8 +124,8 @@ const defaultSettings = {
   theme: "light",
   site: "すべてのサイト",
   period: "全期間",
-  githubOwner: "",
-  githubRepo: "",
+  githubOwner: "take-sustainableand",
+  githubRepo: "scope1-3_calc_app",
   githubBranch: "main",
   dataPath: "data/scarbon-state.json"
 };
@@ -2020,6 +2020,11 @@ function normalizeSettings(settings) {
   if (settings.period && settings.period !== "全期間" && !/^\d{4}-\d{2}$/.test(settings.period)) {
     settings.period = "全期間";
   }
+  // GitHub 連携先のプリセット。 空文字で永続化されているケース（旧版で保存した既存ユーザー）に
+  // 対しては default で埋め戻す。 ユーザーが意図的に書き換えた値は尊重する。
+  ["githubOwner", "githubRepo", "githubBranch", "dataPath"].forEach((key) => {
+    if (!settings[key] || settings[key] === "") settings[key] = defaultSettings[key];
+  });
   return settings;
 }
 

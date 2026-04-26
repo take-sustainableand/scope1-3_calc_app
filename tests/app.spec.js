@@ -448,8 +448,12 @@ test("「シードに戻す」は localStorage を seed で上書きしてリロ
   await expect(page.getByText("リセットされる原単位")).toHaveCount(0);
 });
 
-test("GitHub 同期は token / owner / repo が無いと error toast を出して何もしない", async ({ page }) => {
+test("GitHub 同期は token が未設定だと error toast を出す（owner/repo は default で埋まる）", async ({ page }) => {
   await page.goto("/#settings");
+  // owner/repo がデフォルトで埋まっていることを確認
+  await expect(page.locator('#setting-githubOwner')).toHaveValue("take-sustainableand");
+  await expect(page.locator('#setting-githubRepo')).toHaveValue("scope1-3_calc_app");
+  // token が未保存だと push は error
   await page.locator('[data-remote-action="push"]').click();
   await expect(page.locator(".toast-error")).toBeVisible();
 });
