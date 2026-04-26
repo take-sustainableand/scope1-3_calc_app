@@ -50,13 +50,16 @@ check("拠点フォームが input になっている", /data-draft="site"\s+lis
 // シードに公開原単位が入っていること
 check("seed に電力が入っている", /id: "f-electricity"/.test(src));
 check("seed に都市ガスが入っている", /id: "f-citygas"/.test(src));
+check("seed に LPG・灯油が入っている", /id: "f-lpg"/.test(src) && /id: "f-kerosene"/.test(src));
 check("seed にガソリン・軽油が入っている", /id: "f-gasoline"/.test(src) && /id: "f-diesel"/.test(src));
 check("seed に通勤(鉄道/路線バス/自家用乗用車)が入っている", /f-commute-rail/.test(src) && /f-commute-bus/.test(src) && /f-commute-car/.test(src));
 
 // data/scarbon-state.json も同等の seed
-check("JSON に factors が 7件以上ある", Array.isArray(stateJson.factors) && stateJson.factors.length >= 7);
+check("JSON に factors が 9件以上ある", Array.isArray(stateJson.factors) && stateJson.factors.length >= 9);
 check("JSON の activities は空", Array.isArray(stateJson.activities) && stateJson.activities.length === 0);
 check("JSON に通勤(自家用乗用車)係数 0.000130 が含まれる", stateJson.factors.some((f) => f.id === "f-commute-car" && f.coefficient === 0.000130));
+check("JSON に LPG (kg) が含まれる", stateJson.factors.some((f) => f.id === "f-lpg" && f.unit === "kg"));
+check("JSON に灯油 (L, 0.00249) が含まれる", stateJson.factors.some((f) => f.id === "f-kerosene" && f.unit === "L" && f.coefficient === 0.00249));
 
 // XSS 対策: HTML 出力行で escape を経由していない factor / activity の生展開を検出
 // （文字列代入や Map key 内の `${factor.scope}` などは HTML タグを含まない行なので除外）
@@ -97,6 +100,11 @@ check("バックアップ書き込みを verify する", /localStorage\.getItem\
 check("バックアップ失敗時は v1 を残し backupFailed フラグを立てる", /backupFailed: true/.test(src));
 check("v2 への copy 成功を verify してから v1 を削除する", /localStorage\.getItem\(current\) === value/.test(src) && /canRemoveLegacy/.test(src));
 check("バックアップ失敗時にユーザーへエラー通知", /バックアップ保存に失敗したため、移行を中断しました/.test(src));
+check("backupFailed のとき bootstrapData が seed を v2 に書き込まない", /async function bootstrapData\(\)[\s\S]{0,200}legacyMigrationResult\.backupFailed[\s\S]{0,40}return/.test(src));
+check("backupFailed のとき persist が抑止される", /function persist\(\)\s*\{[\s\S]{0,100}legacyMigrationResult\.backupFailed[\s\S]{0,40}return/.test(src));
+check("backupFailed のとき persistSettings が抑止される", /function persistSettings\(\)\s*\{[\s\S]{0,100}legacyMigrationResult\.backupFailed[\s\S]{0,40}return/.test(src));
+check("backupFailed のとき loadInitialCollection が v1 を読みに行く", /function loadInitialCollection\([\s\S]{0,300}legacyMigrationResult\.backupFailed[\s\S]{0,200}localStorage\.getItem\(legacyKey\)/.test(src));
+check("読み取り専用モードを toast で告知", /読み取り専用モード/.test(src));
 
 // GitHub API 関連
 check("githubGetContents 定義あり", /async function githubGetContents\(/.test(src));

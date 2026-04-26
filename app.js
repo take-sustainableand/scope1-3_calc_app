@@ -97,6 +97,8 @@ const mobileScreens = ["dashboard", "data-list", "data-input", "analytics", "set
 const seedFactors = [
   { id: "f-electricity", scope: "Scope 2", name: "電力（日本・全国平均）", category: "電力", unit: "kWh", coefficient: 0.000434, source: "環境省 算定・報告・公表制度 R03年度実績代替値", region: "日本", year: "2023", status: "公式" },
   { id: "f-citygas", scope: "Scope 1", name: "都市ガス（13A）", category: "燃料", unit: "m3", coefficient: 0.00221, source: "環境省 算定・報告・公表制度", region: "日本", year: "2023", status: "公式" },
+  { id: "f-lpg", scope: "Scope 1", name: "LPG（プロパン）", category: "燃料", unit: "kg", coefficient: 0.003, source: "環境省 算定・報告・公表制度", region: "日本", year: "2023", status: "公式" },
+  { id: "f-kerosene", scope: "Scope 1", name: "灯油", category: "燃料", unit: "L", coefficient: 0.00249, source: "環境省 算定・報告・公表制度", region: "日本", year: "2023", status: "公式" },
   { id: "f-gasoline", scope: "Scope 1", name: "ガソリン", category: "燃料", unit: "L", coefficient: 0.00232, source: "環境省 算定・報告・公表制度", region: "日本", year: "2023", status: "公式" },
   { id: "f-diesel", scope: "Scope 1", name: "軽油", category: "燃料", unit: "L", coefficient: 0.00258, source: "環境省 算定・報告・公表制度", region: "日本", year: "2023", status: "公式" },
   { id: "f-commute-rail", scope: "Scope 3", name: "通勤（鉄道）", category: "通勤", unit: "人km", coefficient: 0.0000196, source: "国交省 旅客輸送統計（CO2排出原単位）", region: "日本", year: "2022", status: "公式" },
@@ -149,15 +151,15 @@ const state = {
   }
 };
 
-let factors = loadJSON(STORAGE_KEYS.factors, seedFactors);
-let activities = loadJSON(STORAGE_KEYS.activities, seedActivities);
+let factors = loadInitialCollection(STORAGE_KEYS.factors, "scarbon:factors:v1", seedFactors);
+let activities = loadInitialCollection(STORAGE_KEYS.activities, "scarbon:activities:v1", seedActivities);
 
 document.addEventListener("DOMContentLoaded", () => {
   applyTheme();
   render();
   bootstrapData();
   if (legacyMigrationResult.backupFailed) {
-    showToast("旧 v1 データのバックアップ保存に失敗したため、移行を中断しました。ブラウザのストレージ容量を確認してください（v1 データは元のまま残っています）。", "error");
+    showToast("旧 v1 データのバックアップ保存に失敗したため、移行を中断しました。読み取り専用モードで起動しています（編集内容はリロードで失われます）。ブラウザのストレージ容量を空けて再読込してください。", "error");
   } else if (legacyMigrationResult.migrated) {
     showToast(`旧バージョン (v1) のデータ ${legacyMigrationResult.migratedCount} 件を移行しました。バックアップは設定画面から JSON 取得できます。`, "info");
   } else if (legacyMigrationResult.conflicted && legacyMigrationResult.conflicted.length) {
@@ -380,6 +382,8 @@ document.addEventListener("change", (event) => {
 });
 
 async function bootstrapData() {
+  // 移行のバックアップ保存に失敗したときは、 v2 を seed で汚染しない（次回ロードで v1→v2 を再試行できるように温存）。
+  if (legacyMigrationResult.backupFailed) return;
   const hasLocalFactors = localStorage.getItem(STORAGE_KEYS.factors);
   const hasLocalActivities = localStorage.getItem(STORAGE_KEYS.activities);
   if (hasLocalFactors && hasLocalActivities) return;
@@ -1494,16 +1498,29 @@ function round(value) {
 }
 
 function persist() {
+  if (legacyMigrationResult.backupFailed) return;
   localStorage.setItem(STORAGE_KEYS.factors, JSON.stringify(factors));
   localStorage.setItem(STORAGE_KEYS.activities, JSON.stringify(activities));
 }
 
 function persistSettings() {
+  if (legacyMigrationResult.backupFailed) return;
   localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(state.settings));
 }
 
 function persistRemote() {
+  if (legacyMigrationResult.backupFailed) return;
   localStorage.setItem(STORAGE_KEYS.remote, JSON.stringify(state.remote));
+}
+
+function loadInitialCollection(currentKey, legacyKey, fallback) {
+  if (legacyMigrationResult.backupFailed) {
+    try {
+      const legacyRaw = localStorage.getItem(legacyKey);
+      if (legacyRaw) return JSON.parse(legacyRaw);
+    } catch (error) {}
+  }
+  return loadJSON(currentKey, fallback);
 }
 
 function getLegacyBackup() {
