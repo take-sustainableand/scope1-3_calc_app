@@ -259,8 +259,18 @@ document.addEventListener("click", (event) => {
     activities = [];
     state.selectedFactorId = "";
     state.draft = { factorId: "", amount: "", site: "", supplier: "", date: "", memo: "" };
-    bootstrapData().then(() => {
-      showToast("シードデータから再起動しました", "success");
+    bootstrapData().then((result) => {
+      if (result.ok && result.factorCount > 0) {
+        showToast(`シードデータから再起動しました（原単位 ${result.factorCount} 件）`, "success");
+      } else if (result.reason === "fetch-error") {
+        showToast(`シードデータの読み込みに失敗しました：${result.error || "不明なエラー"}`, "error");
+      } else if (result.reason === "empty-seed") {
+        showToast("シードデータが空です。data/scarbon-state.json を確認してください。", "error");
+      } else if (result.reason === "backup-failed") {
+        showToast("読み取り専用モードのためリセットできません。", "error");
+      } else {
+        showToast("シードデータをリセットできませんでした。", "error");
+      }
       render();
     });
     return;
@@ -405,11 +415,15 @@ document.addEventListener("change", (event) => {
 });
 
 async function bootstrapData() {
-  // 移行のバックアップ保存に失敗したときは、 v2 を seed で汚染しない（次回ロードで v1→v2 を再試行できるように温存）。
-  if (legacyMigrationResult.backupFailed) return;
+  // 戻り値: { ok: boolean, reason?: string, factorCount: number } — 呼び出し元（特に seed-reset）が成否を判定できるようにする。
+  if (legacyMigrationResult.backupFailed) {
+    return { ok: false, reason: "backup-failed", factorCount: factors.length };
+  }
   // 「factors が 0 件」なら（過去のリセット操作で空配列が永続化されているケースも含めて） seed を取り直す。
   // activities はユーザーが意図的に空にした可能性が高いため、現状を尊重。
-  if (factors.length > 0) return;
+  if (factors.length > 0) {
+    return { ok: true, reason: "already-loaded", factorCount: factors.length };
+  }
   try {
     const response = await fetch(state.settings.dataPath, { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -420,8 +434,12 @@ async function bootstrapData() {
     }
     persist();
     render();
+    if (factors.length === 0) {
+      return { ok: false, reason: "empty-seed", factorCount: 0 };
+    }
+    return { ok: true, reason: "fetched", factorCount: factors.length };
   } catch (error) {
-    // フォールバック: シードデータのまま起動
+    return { ok: false, reason: "fetch-error", factorCount: 0, error: error?.message || String(error) };
   }
 }
 
@@ -1882,9 +1900,13 @@ function showToast(message, type = "info") {
   state.toastType = type;
   window.clearTimeout(showToast.timer);
   const duration = type === "error" ? 4200 : 2400;
+  // 表示は render() で行うが、自動消去はトースト要素だけ削除する（select の dropdown が
+  // 開いているときに DOM 全体を再構築すると閉じてしまうため）。
   showToast.timer = window.setTimeout(() => {
     state.toast = "";
-    render();
+    state.toastType = "info";
+    const el = document.querySelector(".toast");
+    if (el && el.parentNode) el.parentNode.removeChild(el);
   }, duration);
   render();
 }

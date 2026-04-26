@@ -7,7 +7,9 @@
     "serve": "python3 -m http.server 8000",
     "test": "playwright test",
     "test:install": "playwright install chromium",
-    "test:smoke": "node tests/smoke.mjs"
+    "test:smoke": "node tests/smoke.mjs",
+    "test:dom": "node tests/dom-harness.mjs",
+    "test:fast": "node tests/smoke.mjs && node tests/dom-harness.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0"
