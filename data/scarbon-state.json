@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-04-26T00:00:00+09:00",
+  "factors": [
+    { "id": "f-electricity", "scope": "Scope 2", "name": "電力（日本）", "category": "電力", "unit": "kWh", "coefficient": 0.000456, "source": "手動登録", "region": "日本（全国平均）", "year": "2023", "status": "公式" },
+    { "id": "f-citygas", "scope": "Scope 1", "name": "都市ガス（13A）", "category": "燃料", "unit": "m3", "coefficient": 0.00223, "source": "手動登録", "region": "日本", "year": "2023", "status": "公式" },
+    { "id": "f-gasoline", "scope": "Scope 1", "name": "ガソリン", "category": "燃料", "unit": "L", "coefficient": 0.00232, "source": "手動登録", "region": "日本", "year": "2023", "status": "公式" },
+    { "id": "f-diesel", "scope": "Scope 1", "name": "軽油", "category": "燃料", "unit": "L", "coefficient": 0.00258, "source": "手動登録", "region": "日本", "year": "2023", "status": "公式" },
+    { "id": "f-heavy", "scope": "Scope 1", "name": "A重油", "category": "燃料", "unit": "L", "coefficient": 0.00271, "source": "手動登録", "region": "日本", "year": "2023", "status": "公式" },
+    { "id": "f-purchased", "scope": "Scope 3", "name": "購入した製品・サービス", "category": "購入", "unit": "百万円", "coefficient": 0.42, "source": "カスタム", "region": "日本", "year": "2026", "status": "カスタム" },
+    { "id": "f-transport", "scope": "Scope 3", "name": "トラック輸送（10t）", "category": "輸送・配送", "unit": "t-km", "coefficient": 0.192, "source": "カスタム", "region": "日本", "year": "2026", "status": "カスタム" },
+    { "id": "f-waste", "scope": "Scope 3", "name": "廃棄物（混合廃棄物）", "category": "廃棄物", "unit": "t", "coefficient": 0.456, "source": "手動登録", "region": "日本", "year": "2021", "status": "要確認" },
+    { "id": "f-capital", "scope": "Scope 3", "name": "資本財", "category": "資本財", "unit": "百万円", "coefficient": 5.2, "source": "カスタム", "region": "日本", "year": "2026", "status": "カスタム" }
+  ],
+  "activities": [
+    { "id": "a-001", "factorId": "f-citygas", "amount": 350000, "site": "東京本社", "supplier": "東京ガス株式会社", "date": "2026-04-30", "memo": "ボイラー燃料" },
+    { "id": "a-002", "factorId": "f-gasoline", "amount": 260000, "site": "営業部車両", "supplier": "共通購買", "date": "2026-04-28", "memo": "社用車" },
+    { "id": "a-003", "factorId": "f-diesel", "amount": 372000, "site": "物流センター", "supplier": "共通購買", "date": "2026-04-25", "memo": "非常用発電機" },
+    { "id": "a-004", "factorId": "f-electricity", "amount": 7039474, "site": "全拠点", "supplier": "電力会社", "date": "2026-04-30", "memo": "電力使用量" },
+    { "id": "a-005", "factorId": "f-purchased", "amount": 13800, "site": "全社", "supplier": "主要サプライヤー", "date": "2026-04-30", "memo": "購買データ" },
+    { "id": "a-006", "factorId": "f-transport", "amount": 3200, "site": "大阪工場", "supplier": "物流パートナー", "date": "2026-04-26", "memo": "上流輸送" },
+    { "id": "a-007", "factorId": "f-waste", "amount": 450, "site": "名古屋工場", "supplier": "処理会社", "date": "2026-04-20", "memo": "産業廃棄物" },
+    { "id": "a-008", "factorId": "f-capital", "amount": 33, "site": "福岡工場", "supplier": "設備ベンダー", "date": "2026-04-18", "memo": "設備購入" }
+  ]
+}
