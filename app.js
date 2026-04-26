@@ -19,9 +19,7 @@ const LEGACY_BACKUP_KEY = "scarbon:legacy-backup:v1";
 const GITHUB_API = "https://api.github.com";
 
 const legacyMigrationResult = (function migrateLegacyStorage() {
-  if (typeof localStorage === "undefined") return { migrated: false, conflicted: [] };
-  let migratedCount = 0;
-  const conflicted = [];
+  if (typeof localStorage === "undefined") return { migrated: false, conflicted: [], backupFailed: false };
   const snapshot = {};
   let foundLegacy = false;
   LEGACY_STORAGE_PAIRS.forEach(({ legacy }) => {
@@ -33,29 +31,52 @@ const legacyMigrationResult = (function migrateLegacyStorage() {
       }
     } catch (error) {}
   });
-  if (!foundLegacy) return { migrated: false, conflicted: [] };
-  // v1 を失う前にバックアップを取る
+  if (!foundLegacy) return { migrated: false, conflicted: [], backupFailed: false };
+
+  // 1. バックアップを取り、 確実に永続化されたか verify する。
+  //    ここで失敗したら v1 は一切触らずに abort（ユーザーデータを失わない）
+  const payload = JSON.stringify({
+    backupAt: new Date().toISOString(),
+    data: snapshot
+  });
   try {
-    localStorage.setItem(LEGACY_BACKUP_KEY, JSON.stringify({
-      backupAt: new Date().toISOString(),
-      data: snapshot
-    }));
-  } catch (error) {}
+    localStorage.setItem(LEGACY_BACKUP_KEY, payload);
+    if (localStorage.getItem(LEGACY_BACKUP_KEY) !== payload) {
+      return { migrated: false, conflicted: [], backupFailed: true };
+    }
+  } catch (error) {
+    return { migrated: false, conflicted: [], backupFailed: true };
+  }
+
+  // 2. バックアップが取れた場合のみ v1 → v2 にコピーし、 コピー成功を verify してから v1 削除
+  let migratedCount = 0;
+  const conflicted = [];
   LEGACY_STORAGE_PAIRS.forEach(({ legacy, current }) => {
+    const value = snapshot[legacy];
+    if (value === undefined || value === null) return;
+    let canRemoveLegacy = false;
     try {
-      const value = snapshot[legacy];
-      if (value === undefined || value === null) return;
       const currentValue = localStorage.getItem(current);
       if (currentValue === null) {
         localStorage.setItem(current, value);
-        migratedCount += 1;
+        if (localStorage.getItem(current) === value) {
+          migratedCount += 1;
+          canRemoveLegacy = true;
+        }
+        // setItem 失敗（quota など）の場合 canRemoveLegacy=false で v1 を残す
       } else {
+        // 衝突: v2 が既に存在 → v2 を尊重。 v1 はバックアップに残っているので削除して良い
         conflicted.push(legacy);
+        canRemoveLegacy = true;
       }
-      localStorage.removeItem(legacy);
-    } catch (error) {}
+    } catch (error) {
+      canRemoveLegacy = false;
+    }
+    if (canRemoveLegacy) {
+      try { localStorage.removeItem(legacy); } catch (error) {}
+    }
   });
-  return { migrated: migratedCount > 0, migratedCount, conflicted };
+  return { migrated: migratedCount > 0, migratedCount, conflicted, backupFailed: false };
 })();
 
 const screens = [
@@ -135,7 +156,9 @@ document.addEventListener("DOMContentLoaded", () => {
   applyTheme();
   render();
   bootstrapData();
-  if (legacyMigrationResult.migrated) {
+  if (legacyMigrationResult.backupFailed) {
+    showToast("旧 v1 データのバックアップ保存に失敗したため、移行を中断しました。ブラウザのストレージ容量を確認してください（v1 データは元のまま残っています）。", "error");
+  } else if (legacyMigrationResult.migrated) {
     showToast(`旧バージョン (v1) のデータ ${legacyMigrationResult.migratedCount} 件を移行しました。バックアップは設定画面から JSON 取得できます。`, "info");
   } else if (legacyMigrationResult.conflicted && legacyMigrationResult.conflicted.length) {
     showToast(`旧 v1 データは新 v2 と衝突したためバックアップにのみ退避しました。設定画面から確認できます。`, "info");

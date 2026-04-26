@@ -93,6 +93,10 @@ check("getLegacyBackup でバックアップを参照できる", /function getLe
 check("renderLegacyBackupSection で UI 提供", /function renderLegacyBackupSection\(/.test(src));
 check("data-export-legacy / data-delete-legacy ハンドラあり", /data-export-legacy/.test(src) && /data-delete-legacy/.test(src));
 check("移行成功時にユーザーに通知する", /旧バージョン \(v1\) のデータ/.test(src));
+check("バックアップ書き込みを verify する", /localStorage\.getItem\(LEGACY_BACKUP_KEY\) !== payload/.test(src));
+check("バックアップ失敗時は v1 を残し backupFailed フラグを立てる", /backupFailed: true/.test(src));
+check("v2 への copy 成功を verify してから v1 を削除する", /localStorage\.getItem\(current\) === value/.test(src) && /canRemoveLegacy/.test(src));
+check("バックアップ失敗時にユーザーへエラー通知", /バックアップ保存に失敗したため、移行を中断しました/.test(src));
 
 // GitHub API 関連
 check("githubGetContents 定義あり", /async function githubGetContents\(/.test(src));

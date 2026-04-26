@@ -44,6 +44,35 @@ test("旧 v1 localStorage は v2 に移行されてバックアップに退避�
   await expect(page.getByRole("heading", { name: "v1 バックアップ" })).toBeVisible();
 });
 
+test("v1 バックアップ保存に失敗した場合、 v1 データは削除されない", async ({ page }) => {
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem("scarbon:factors:v1", JSON.stringify([{ id: "user-protected", scope: "Scope 1", name: "保護対象データ", category: "x", unit: "kg", coefficient: 0.1, source: "user", region: "日本", year: "2024", status: "カスタム" }]));
+    } catch (error) {}
+    // バックアップキーへの setItem だけ throw（quota 超過をエミュレート）
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function(key, value) {
+      if (key === "scarbon:legacy-backup:v1") {
+        throw new Error("QuotaExceededError simulated");
+      }
+      return original.call(this, key, value);
+    };
+  });
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  const v1 = await page.evaluate(() => localStorage.getItem("scarbon:factors:v1"));
+  expect(v1).not.toBeNull();
+  expect(v1).toContain("保護対象データ");
+  // v2 にもコピーされていない
+  const v2 = await page.evaluate(() => localStorage.getItem("scarbon:factors:v2"));
+  expect(v2 === null || !v2.includes("保護対象データ")).toBeTruthy();
+  // バックアップキーも未保存
+  const backup = await page.evaluate(() => localStorage.getItem("scarbon:legacy-backup:v1"));
+  expect(backup).toBeNull();
+  // ユーザーにエラートーストが出る
+  await expect(page.locator(".toast-error")).toBeVisible();
+});
+
 test("初回起動: オンボーディング画面が表示される", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "S&Carbon へようこそ" })).toBeVisible();
