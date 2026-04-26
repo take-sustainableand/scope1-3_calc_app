@@ -668,13 +668,13 @@ function renderTopbar(screen) {
       <div class="top-controls">
         <div class="control">
           <label for="site-select">サイト・拠点</label>
-          <select id="site-select" data-setting="site">
+          <select id="site-select" name="site-select" data-setting="site" autocomplete="off">
             ${optionList(sites, state.settings.site)}
           </select>
         </div>
         <div class="control">
           <label for="period-select">集計期間</label>
-          <select id="period-select" data-setting="period">
+          <select id="period-select" name="period-select" data-setting="period" autocomplete="off">
             ${optionList(periods, state.settings.period)}
           </select>
         </div>
@@ -964,36 +964,36 @@ function renderDataInput() {
         <div class="form-grid">
           <label class="field">
             <span>排出源・カテゴリ</span>
-            <select data-draft="factorId">${scopeFactors.map((factor) => `<option value="${escapeAttr(factor.id)}" ${factor.id === state.draft.factorId ? "selected" : ""}>${escapeHTML(factor.name)}</option>`).join("")}</select>
+            <select id="draft-factorId" name="draft-factorId" data-draft="factorId" autocomplete="off">${scopeFactors.map((factor) => `<option value="${escapeAttr(factor.id)}" ${factor.id === state.draft.factorId ? "selected" : ""}>${escapeHTML(factor.name)}</option>`).join("")}</select>
           </label>
           <label class="field">
             <span>活動量</span>
-            <input data-draft="amount" type="number" min="0" step="0.01" value="${escapeAttr(state.draft.amount)}" placeholder="例：1250">
+            <input id="draft-amount" name="draft-amount" data-draft="amount" type="number" min="0" step="0.01" value="${escapeAttr(state.draft.amount)}" placeholder="例：1250" autocomplete="off">
           </label>
           <label class="field">
             <span>単位</span>
-            <input value="${escapeAttr(selected?.unit || "")}" readonly>
+            <input id="draft-unit-display" name="draft-unit-display" value="${escapeAttr(selected?.unit || "")}" readonly autocomplete="off">
           </label>
           <label class="field">
             <span>原単位</span>
-            <input value="${escapeAttr(selected?.coefficient ?? "")}" readonly>
+            <input id="draft-coefficient-display" name="draft-coefficient-display" value="${escapeAttr(selected?.coefficient ?? "")}" readonly autocomplete="off">
           </label>
           <label class="field">
             <span>拠点</span>
-            <input data-draft="site" list="site-suggestions" value="${escapeAttr(state.draft.site)}" placeholder="例：本社・通勤・自宅">
+            <input id="draft-site" name="draft-site" data-draft="site" list="site-suggestions" value="${escapeAttr(state.draft.site)}" placeholder="例：本社・通勤・自宅" autocomplete="off">
             <datalist id="site-suggestions">${siteSuggestions().map((site) => `<option value="${escapeAttr(site)}"></option>`).join("")}</datalist>
           </label>
           <label class="field">
             <span>サプライヤー・設備</span>
-            <input data-draft="supplier" value="${escapeAttr(state.draft.supplier)}" placeholder="例：東京ガス株式会社">
+            <input id="draft-supplier" name="draft-supplier" data-draft="supplier" value="${escapeAttr(state.draft.supplier)}" placeholder="例：東京ガス株式会社" autocomplete="off">
           </label>
           <label class="field">
             <span>日付</span>
-            <input data-draft="date" type="date" value="${escapeAttr(state.draft.date)}">
+            <input id="draft-date" name="draft-date" data-draft="date" type="date" value="${escapeAttr(state.draft.date)}" autocomplete="off">
           </label>
           <label class="field">
             <span>証憑メモ</span>
-            <input data-draft="memo" value="${escapeAttr(state.draft.memo)}" placeholder="例：請求書 202604.pdf">
+            <input id="draft-memo" name="draft-memo" data-draft="memo" value="${escapeAttr(state.draft.memo)}" placeholder="例：請求書 202604.pdf" autocomplete="off">
           </label>
         </div>
         <div style="height:16px"></div>
@@ -1109,7 +1109,7 @@ function renderFactors() {
         </div>
         <div class="filters">
           <div class="search-row">
-            <input class="search-input" placeholder="原単位名・カテゴリで検索" aria-label="原単位検索">
+            <input id="factor-search" name="factor-search" class="search-input" placeholder="原単位名・カテゴリで検索" aria-label="原単位検索" autocomplete="off">
             <button class="icon-button" aria-label="フィルター">${icon("filter")}</button>
           </div>
           <div class="chips">
@@ -1142,13 +1142,13 @@ function renderFactorForm(selected) {
   const scopeSel = d.scope || selected?.scope || "Scope 1";
   return `
     <div class="form-grid" style="grid-template-columns:1fr">
-      <label class="field"><span>原単位名</span><input id="factor-name" value="${escapeAttr(d.name)}" placeholder="例：冷媒（R32）"></label>
-      <label class="field"><span>対象Scope</span><select id="factor-scope">${optionList(["Scope 1", "Scope 2", "Scope 3"], scopeSel)}</select></label>
-      <label class="field"><span>カテゴリ</span><input id="factor-category" value="${escapeAttr(d.category)}" placeholder="例：冷媒"></label>
-      <label class="field"><span>単位</span><input id="factor-unit" value="${escapeAttr(d.unit)}" placeholder="例：kg"></label>
-      <label class="field"><span>係数（t-CO2e）</span><input id="factor-coefficient" type="number" step="0.000001" min="0" value="${escapeAttr(d.coefficient)}" placeholder="例：0.000445"></label>
-      <label class="field"><span>適用地域</span><input id="factor-region" value="${escapeAttr(d.region)}" placeholder="例：日本"></label>
-      <label class="field"><span>参照年度</span><input id="factor-year" value="${escapeAttr(d.year)}" placeholder="例：2026"></label>
+      <label class="field"><span>原単位名</span><input id="factor-name" name="factor-name" value="${escapeAttr(d.name)}" placeholder="例：冷媒（R32）" autocomplete="off"></label>
+      <label class="field"><span>対象Scope</span><select id="factor-scope" name="factor-scope" autocomplete="off">${optionList(["Scope 1", "Scope 2", "Scope 3"], scopeSel)}</select></label>
+      <label class="field"><span>カテゴリ</span><input id="factor-category" name="factor-category" value="${escapeAttr(d.category)}" placeholder="例：冷媒" autocomplete="off"></label>
+      <label class="field"><span>単位</span><input id="factor-unit" name="factor-unit" value="${escapeAttr(d.unit)}" placeholder="例：kg" autocomplete="off"></label>
+      <label class="field"><span>係数（t-CO2e）</span><input id="factor-coefficient" name="factor-coefficient" type="number" step="0.000001" min="0" value="${escapeAttr(d.coefficient)}" placeholder="例：0.000445" autocomplete="off"></label>
+      <label class="field"><span>適用地域</span><input id="factor-region" name="factor-region" value="${escapeAttr(d.region)}" placeholder="例：日本" autocomplete="off"></label>
+      <label class="field"><span>参照年度</span><input id="factor-year" name="factor-year" value="${escapeAttr(d.year)}" placeholder="例：2026" autocomplete="off"></label>
       <button class="primary-button" data-add-factor>${icon("plus")} 登録する</button>
     </div>
     ${selected ? `
@@ -1324,19 +1324,19 @@ function renderGoals() {
         <div class="form-grid">
           <label class="field">
             <span>対象年度</span>
-            <select id="goal-year">${optionList(yearOptions, d.year || yearOptions[0])}</select>
+            <select id="goal-year" name="goal-year" autocomplete="off">${optionList(yearOptions, d.year || yearOptions[0])}</select>
           </label>
           <label class="field">
             <span>対象Scope</span>
-            <select id="goal-scope">${optionList(scopeOptions, d.scope || "全Scope")}</select>
+            <select id="goal-scope" name="goal-scope" autocomplete="off">${optionList(scopeOptions, d.scope || "全Scope")}</select>
           </label>
           <label class="field">
             <span>目標排出量 (t-CO2e)</span>
-            <input id="goal-targetTons" type="number" min="0" step="0.001" value="${escapeAttr(d.targetTons)}" placeholder="例：12.5">
+            <input id="goal-targetTons" name="goal-targetTons" type="number" min="0" step="0.001" value="${escapeAttr(d.targetTons)}" placeholder="例：12.5" autocomplete="off">
           </label>
           <label class="field" style="grid-column: 1 / -1">
             <span>メモ</span>
-            <input id="goal-note" value="${escapeAttr(d.note)}" placeholder="例：基準年比 30% 削減">
+            <input id="goal-note" name="goal-note" value="${escapeAttr(d.note)}" placeholder="例：基準年比 30% 削減" autocomplete="off">
           </label>
         </div>
         <div class="form-actions" style="display:flex; justify-content:flex-end; margin-top:14px">
@@ -1437,23 +1437,23 @@ function renderActions() {
         <div class="form-grid">
           <label class="field" style="grid-column: 1 / -1">
             <span>施策タイトル</span>
-            <input id="action-title" value="${escapeAttr(d.title)}" placeholder="例：本社の LED 化">
+            <input id="action-title" name="action-title" value="${escapeAttr(d.title)}" placeholder="例：本社の LED 化" autocomplete="off">
           </label>
           <label class="field">
             <span>期待削減量 (t-CO2e)</span>
-            <input id="action-expectedReductionTons" type="number" min="0" step="0.001" value="${escapeAttr(d.expectedReductionTons)}" placeholder="例：3.2">
+            <input id="action-expectedReductionTons" name="action-expectedReductionTons" type="number" min="0" step="0.001" value="${escapeAttr(d.expectedReductionTons)}" placeholder="例：3.2" autocomplete="off">
           </label>
           <label class="field">
             <span>状態</span>
-            <select id="action-status">${optionList(ACTION_STATUSES, d.status || "検討中")}</select>
+            <select id="action-status" name="action-status" autocomplete="off">${optionList(ACTION_STATUSES, d.status || "検討中")}</select>
           </label>
           <label class="field">
             <span>期限</span>
-            <input id="action-dueDate" type="date" value="${escapeAttr(d.dueDate)}">
+            <input id="action-dueDate" name="action-dueDate" type="date" value="${escapeAttr(d.dueDate)}" autocomplete="off">
           </label>
           <label class="field" style="grid-column: 1 / -1">
             <span>メモ</span>
-            <input id="action-note" value="${escapeAttr(d.note)}" placeholder="例：投資 50 万円、 回収 2 年">
+            <input id="action-note" name="action-note" value="${escapeAttr(d.note)}" placeholder="例：投資 50 万円、 回収 2 年" autocomplete="off">
           </label>
         </div>
         <div class="form-actions" style="display:flex; justify-content:flex-end; margin-top:14px">
@@ -1582,10 +1582,10 @@ function renderSettings() {
       <section class="card card-pad">
         <div class="section-title"><h2>GitHub 保存先</h2><span class="badge ${remoteReady ? "green" : "amber"}">${remoteReady ? "設定済み" : "未設定"}</span></div>
         <div class="settings-list">
-          <label class="field"><span>GitHub owner</span><input data-setting="githubOwner" value="${escapeAttr(state.settings.githubOwner)}" placeholder="例：take"></label>
-          <label class="field"><span>GitHub repo</span><input data-setting="githubRepo" value="${escapeAttr(state.settings.githubRepo)}" placeholder="例：scope1-3_calc_app"></label>
-          <label class="field"><span>ブランチ</span><input data-setting="githubBranch" value="${escapeAttr(state.settings.githubBranch || "main")}" placeholder="main"></label>
-          <label class="field"><span>データ保存パス</span><input data-setting="dataPath" value="${escapeAttr(state.settings.dataPath)}"></label>
+          <label class="field"><span>GitHub owner</span><input id="setting-githubOwner" name="setting-githubOwner" data-setting="githubOwner" value="${escapeAttr(state.settings.githubOwner)}" placeholder="例：take" autocomplete="off"></label>
+          <label class="field"><span>GitHub repo</span><input id="setting-githubRepo" name="setting-githubRepo" data-setting="githubRepo" value="${escapeAttr(state.settings.githubRepo)}" placeholder="例：scope1-3_calc_app" autocomplete="off"></label>
+          <label class="field"><span>ブランチ</span><input id="setting-githubBranch" name="setting-githubBranch" data-setting="githubBranch" value="${escapeAttr(state.settings.githubBranch || "main")}" placeholder="main" autocomplete="off"></label>
+          <label class="field"><span>データ保存パス</span><input id="setting-dataPath" name="setting-dataPath" data-setting="dataPath" value="${escapeAttr(state.settings.dataPath)}" autocomplete="off"></label>
         </div>
         <p class="muted">最終同期: ${escapeHTML(lastSync)}${state.remote.sha ? ` / sha: ${escapeHTML(state.remote.sha.slice(0, 7))}` : ""}</p>
         <div class="form-actions" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px">
@@ -1597,7 +1597,7 @@ function renderSettings() {
       <section class="card card-pad">
         <div class="section-title"><h2>個人アクセストークン</h2><span class="badge ${tokenSet ? "green" : "amber"}">${tokenSet ? "保存済み" : "未設定"}</span></div>
         <p class="muted">Fine-grained token を推奨。対象リポジトリ・Contents read/write のみに限定してください。トークンはこのブラウザの localStorage にのみ保持され、リポジトリには絶対にコミットされません。</p>
-        <label class="field"><span>GitHub Personal Access Token</span><input id="github-token" type="password" autocomplete="off" placeholder="${tokenSet ? "（保存済み・上書きする場合のみ入力）" : "ghp_xxx... または github_pat_xxx..."}"></label>
+        <label class="field"><span>GitHub Personal Access Token</span><input id="github-token" name="github-token" type="password" autocomplete="new-password" placeholder="${tokenSet ? "（保存済み・上書きする場合のみ入力）" : "ghp_xxx... または github_pat_xxx..."}"></label>
         <div class="form-actions" style="display:flex; gap:10px; margin-top:12px">
           <button class="primary-button" data-token-save>保存</button>
           <button class="secondary-button" data-token-clear ${tokenSet ? "" : "disabled"}>削除</button>
