@@ -22,3 +22,9 @@ Thumbs.db
 
 # Claude Code のフック出力
 tool_audit.log
+
+# Node / Playwright
+node_modules/
+test-results/
+playwright-report/
+playwright/.cache/

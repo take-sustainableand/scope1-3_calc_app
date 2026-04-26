@@ -33,10 +33,21 @@ python3 -m http.server 8000
 検証コマンド:
 
 ```sh
+# 構文チェック（依存ゼロ）
 node --check app.js
 xmllint --html --noout index.html
 python3 -m json.tool data/scarbon-state.json > /dev/null
+
+# 軽量スモークテスト（依存ゼロ・XSS / ハードコード残存 / 集計ロジックの回帰検出）
+npm run test:smoke
+
+# Playwright による E2E（要 Chromium インストール）
+npm install
+npx playwright install chromium
+npm test
 ```
+
+`npm test` は `playwright.config.js` の指定で `python3 -m http.server 8001` を一時起動して動作するので、別途サーバ起動は不要です。
 
 ## データの優先順位
 

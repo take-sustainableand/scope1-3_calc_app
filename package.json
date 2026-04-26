@@ -1,0 +1,15 @@
+{
+  "name": "scarbon-scope1-3-calc-app",
+  "private": true,
+  "version": "0.1.0",
+  "description": "S&Carbon Scope 1-3 算定ツール（静的サイト + 任意GitHub保存）",
+  "scripts": {
+    "serve": "python3 -m http.server 8000",
+    "test": "playwright test",
+    "test:install": "playwright install chromium",
+    "test:smoke": "node tests/smoke.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0"
+  }
+}
