@@ -311,7 +311,32 @@ check(
 
 // ------- bootstrapData が ok/reason を返す (シードリセット失敗を検知できる) -------
 check("bootstrapData が { ok, reason } を返す", /reason: "fetch-error"/.test(code) && /reason: "empty-seed"/.test(code) && /reason: "fetched"/.test(code));
-check("seed-reset がシードリセット失敗時に error toast", /シードデータの読み込みに失敗しました/.test(code));
+check("seed-reset がシードリセット失敗時に error toast", /シードデータの取得に失敗しました/.test(code) || /シードデータの読み込みに失敗しました/.test(code));
+
+// ------- seed-reset の順序: fetch 成功してから localStorage を消す (失敗時にユーザーデータを保護) -------
+const seedResetMatch = code.match(/if \(target\.dataset\.seedReset !== undefined\) \{([\s\S]+?)\n\s{2,4}\}\s*\n\s{2,4}if \(target/);
+const seedResetBody = seedResetMatch ? seedResetMatch[1] : "";
+check("seed-reset ハンドラが取得できる", seedResetBody.length > 0);
+if (seedResetBody.length > 0) {
+  // fetch の位置 < removeItem の位置 (then の中で removeItem を呼ぶ)
+  const fetchIdx = seedResetBody.indexOf("fetch(");
+  const removeIdx = seedResetBody.indexOf("localStorage.removeItem");
+  check(
+    "seed-reset で fetch が removeItem より先に書かれている",
+    fetchIdx >= 0 && removeIdx >= 0 && fetchIdx < removeIdx,
+    `fetchIdx=${fetchIdx} removeIdx=${removeIdx}`
+  );
+  // .catch の中で localStorage.removeItem を呼んでいない (失敗時にユーザーデータを消さない)
+  const catchMatch = seedResetBody.match(/\.catch\(\(error\) => \{([\s\S]+?)\}\);/);
+  const catchBody = catchMatch ? catchMatch[1] : "";
+  check(
+    "seed-reset の catch で localStorage を変更しない",
+    catchBody.length === 0 || (!/localStorage\.removeItem/.test(catchBody) && !/localStorage\.setItem/.test(catchBody) && !/factors\s*=/.test(catchBody) && !/activities\s*=/.test(catchBody)),
+    catchBody.replace(/\s+/g, " ").slice(0, 200)
+  );
+  // 「ローカルデータは残されています」の文言がある
+  check("seed-reset の catch でユーザーに「ローカルデータは残されています」と通知", /ローカルデータは残されています/.test(seedResetBody));
+}
 
 // ------- 結果 -------
 if (failed) {

@@ -251,28 +251,37 @@ document.addEventListener("click", (event) => {
   if (target.dataset.seedReset !== undefined) {
     if (!ensureWritable()) return;
     if (!window.confirm("ローカルの factors / activities を削除し、シードデータから再起動します。よろしいですか？")) return;
-    try {
-      localStorage.removeItem(STORAGE_KEYS.factors);
-      localStorage.removeItem(STORAGE_KEYS.activities);
-    } catch (error) {}
-    factors = [];
-    activities = [];
-    state.selectedFactorId = "";
-    state.draft = { factorId: "", amount: "", site: "", supplier: "", date: "", memo: "" };
-    bootstrapData().then((result) => {
-      if (result.ok && result.factorCount > 0) {
-        showToast(`シードデータから再起動しました（原単位 ${result.factorCount} 件）`, "success");
-      } else if (result.reason === "fetch-error") {
-        showToast(`シードデータの読み込みに失敗しました：${result.error || "不明なエラー"}`, "error");
-      } else if (result.reason === "empty-seed") {
-        showToast("シードデータが空です。data/scarbon-state.json を確認してください。", "error");
-      } else if (result.reason === "backup-failed") {
-        showToast("読み取り専用モードのためリセットできません。", "error");
-      } else {
-        showToast("シードデータをリセットできませんでした。", "error");
-      }
-      render();
-    });
+    // fetch が成功してからローカルを置き換える (失敗時にユーザーデータが消えないように)
+    fetch(state.settings.dataPath, { cache: "no-store" })
+      .then((response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+      })
+      .then((data) => {
+        if (!data || !Array.isArray(data.factors) || data.factors.length === 0) {
+          const err = new Error("seed_empty");
+          err.code = "seed_empty";
+          throw err;
+        }
+        try {
+          localStorage.removeItem(STORAGE_KEYS.factors);
+          localStorage.removeItem(STORAGE_KEYS.activities);
+        } catch (error) {}
+        factors = data.factors;
+        activities = Array.isArray(data.activities) ? data.activities : [];
+        state.selectedFactorId = "";
+        state.draft = { factorId: "", amount: "", site: "", supplier: "", date: "", memo: "" };
+        persist();
+        showToast(`シードデータから再起動しました（原単位 ${factors.length} 件）`, "success");
+        render();
+      })
+      .catch((error) => {
+        const reason = error && error.code === "seed_empty"
+          ? "シードデータが空です。data/scarbon-state.json を確認してください。"
+          : `シードデータの取得に失敗しました：${error?.message || error}`;
+        // ローカルの factors / activities / localStorage は一切触っていない
+        showToast(`${reason} ローカルデータは残されています。`, "error");
+      });
     return;
   }
 
@@ -405,12 +414,12 @@ document.addEventListener("change", (event) => {
     state.draft[field.dataset.draft] = field.value;
     const factor = getFactor(state.draft.factorId);
     if (factor) state.scope = factor.scope;
-    render();
+    deferRender();
   }
   if (field.dataset.setting) {
     state.settings[field.dataset.setting] = field.value;
     persistSettings();
-    render();
+    deferRender();
   }
 });
 
@@ -447,6 +456,13 @@ function render() {
   const app = document.querySelector("#app");
   const route = validRoute(state.route);
   const screen = screens.find((item) => item.id === route);
+  // フォーカス復元情報を保存（render 後に再 focus する。 native dropdown は復元できないので
+  // change ハンドラ等から render を呼ぶ場合は呼び出し側で deferRender() を使うこと）
+  const active = document.activeElement;
+  const activeId = active && active.id ? active.id : "";
+  const activeName = active && active.getAttribute && active.getAttribute("name") ? active.getAttribute("name") : "";
+  const selStart = active && "selectionStart" in active ? active.selectionStart : null;
+  const selEnd = active && "selectionEnd" in active ? active.selectionEnd : null;
   app.innerHTML = `
     <div class="app-shell">
       ${renderSidebar(route)}
@@ -460,6 +476,33 @@ function render() {
     ${state.busy ? `<div class="busy-overlay" role="status" aria-live="polite"><div class="busy-spinner"></div><span>処理中...</span></div>` : ""}
     ${state.toast ? `<div class="toast toast-${escapeAttr(state.toastType || "info")}" role="status" aria-live="polite">${escapeHTML(state.toast)}</div>` : ""}
   `;
+  // フォーカス復元
+  let restored = null;
+  if (activeId) restored = document.getElementById(activeId);
+  if (!restored && activeName) restored = document.querySelector(`[name="${CSS && CSS.escape ? CSS.escape(activeName) : activeName}"]`);
+  if (restored) {
+    try { restored.focus({ preventScroll: true }); } catch (e) { try { restored.focus(); } catch (e2) {} }
+    if (selStart != null && selEnd != null && "setSelectionRange" in restored) {
+      try { restored.setSelectionRange(selStart, selEnd); } catch (e) {}
+    }
+  }
+}
+
+// dropdown が完全に閉じてから render したい呼び出し元のためのヘルパー。
+// select の change 直後に render を呼ぶと、 一部ブラウザ／タイミングで dropdown が
+// 再度開けない／一瞬で消えるように見える事例があるので、 次フレーム遅延 + microtask 後に実行する。
+function deferRender() {
+  if (deferRender._scheduled) return;
+  deferRender._scheduled = true;
+  const run = () => {
+    deferRender._scheduled = false;
+    render();
+  };
+  if (typeof requestAnimationFrame === "function") {
+    requestAnimationFrame(() => Promise.resolve().then(run));
+  } else {
+    setTimeout(run, 0);
+  }
 }
 
 function renderSidebar(route) {
