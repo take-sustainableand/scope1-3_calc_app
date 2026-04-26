@@ -1308,7 +1308,7 @@ function renderGoals() {
     `;
   }).join("");
   return `
-    <div class="form-layout">
+    <div class="stacked-layout">
       <section class="card card-pad">
         <div class="section-title"><h2>削減目標を登録</h2></div>
         <div class="form-grid">
@@ -1339,7 +1339,7 @@ function renderGoals() {
           <div class="empty-state">
             ${icon("target")}
             <h3>目標は未登録です</h3>
-            <p class="muted">左のフォームから対象年度・Scope・目標値を登録すると、 実績との比較が表示されます。</p>
+            <p class="muted">上のフォームから対象年度・Scope・目標値を登録すると、 実績との比較が表示されます。</p>
           </div>
         ` : `<div class="goal-list">${goalRows}</div>`}
       </section>
@@ -1421,7 +1421,7 @@ function renderActions() {
     `;
   }).join("");
   return `
-    <div class="form-layout">
+    <div class="stacked-layout">
       <section class="card card-pad">
         <div class="section-title"><h2>削減施策を追加</h2></div>
         <div class="form-grid">
@@ -1456,7 +1456,7 @@ function renderActions() {
           <div class="empty-state">
             ${icon("leaf")}
             <h3>施策は未登録です</h3>
-            <p class="muted">左のフォームから施策を追加してください。 検討中→実行中→完了で進捗を管理できます。</p>
+            <p class="muted">上のフォームから施策を追加してください。 検討中→実行中→完了で進捗を管理できます。</p>
           </div>
         ` : `<div class="kanban">${columns}</div>`}
       </section>
