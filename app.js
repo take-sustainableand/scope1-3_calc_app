@@ -1,14 +1,28 @@
 "use strict";
 
 const STORAGE_KEYS = {
-  factors: "scarbon:factors:v1",
-  activities: "scarbon:activities:v1",
-  settings: "scarbon:settings:v1",
+  factors: "scarbon:factors:v2",
+  activities: "scarbon:activities:v2",
+  settings: "scarbon:settings:v2",
   token: "scarbon:token:v1",
-  remote: "scarbon:remote:v1"
+  remote: "scarbon:remote:v2"
 };
 
+const LEGACY_STORAGE_KEYS = [
+  "scarbon:factors:v1",
+  "scarbon:activities:v1",
+  "scarbon:settings:v1",
+  "scarbon:remote:v1"
+];
+
 const GITHUB_API = "https://api.github.com";
+
+(function purgeLegacyStorage() {
+  if (typeof localStorage === "undefined") return;
+  LEGACY_STORAGE_KEYS.forEach((key) => {
+    try { localStorage.removeItem(key); } catch (error) {}
+  });
+})();
 
 const screens = [
   { id: "dashboard", label: "ダッシュボード", mobile: "ホーム", icon: "home" },

@@ -83,6 +83,11 @@ check("STORAGE_KEYS.token が定義されている", /token: "scarbon:token:v1"/
 check("getToken / setToken / clearToken が定義されている", /function getToken\(/.test(src) && /function setToken\(/.test(src) && /function clearToken\(/.test(src));
 check("buildStateJSON にトークンが含まれない", /function buildStateJSON\(\)\s*\{[^}]*\}/.test(src) && !/token:.*getToken\(\)/.test(src));
 
+// 旧 v1 localStorage の自動 purge
+check("STORAGE_KEYS が v2 にバージョンアップ", /factors: "scarbon:factors:v2"/.test(src) && /activities: "scarbon:activities:v2"/.test(src));
+check("LEGACY_STORAGE_KEYS に v1 が列挙されている", /scarbon:factors:v1/.test(src) && /scarbon:activities:v1/.test(src) && /scarbon:settings:v1/.test(src) && /scarbon:remote:v1/.test(src));
+check("purgeLegacyStorage が起動時に実行される", /\(function purgeLegacyStorage\(\)/.test(src) && /LEGACY_STORAGE_KEYS\.forEach/.test(src));
+
 // GitHub API 関連
 check("githubGetContents 定義あり", /async function githubGetContents\(/.test(src));
 check("githubPutContents 定義あり", /async function githubPutContents\(/.test(src));

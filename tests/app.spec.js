@@ -8,6 +8,24 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+test("旧 v1 localStorage は起動時に削除される", async ({ page }) => {
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem("scarbon:factors:v1", JSON.stringify([{ id: "old", scope: "Scope 1", name: "旧ダミー原単位", category: "x", unit: "x", coefficient: 0.1, source: "x", region: "x", year: "2020", status: "公式" }]));
+      localStorage.setItem("scarbon:activities:v1", JSON.stringify([{ id: "old-a", factorId: "old", amount: 1, site: "旧ダミー拠点", supplier: "x", date: "2020-01-01", memo: "旧メモ" }]));
+      localStorage.setItem("scarbon:settings:v1", JSON.stringify({ theme: "dark" }));
+    } catch (error) {}
+  });
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  const v1Factors = await page.evaluate(() => localStorage.getItem("scarbon:factors:v1"));
+  const v1Activities = await page.evaluate(() => localStorage.getItem("scarbon:activities:v1"));
+  expect(v1Factors).toBeNull();
+  expect(v1Activities).toBeNull();
+  await expect(page.getByText("旧ダミー原単位")).toHaveCount(0);
+  await expect(page.getByText("旧ダミー拠点")).toHaveCount(0);
+});
+
 test("初回起動: オンボーディング画面が表示される", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "S&Carbon へようこそ" })).toBeVisible();
