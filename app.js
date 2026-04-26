@@ -478,6 +478,13 @@ document.addEventListener("input", (event) => {
   } else if (field.dataset && field.dataset.setting) {
     state.settings[field.dataset.setting] = field.value;
     persistSettings();
+  } else if (field.id === "factor-search") {
+    // 検索は state を介さず DOM を直接 filter（render を呼ぶと input の focus が外れる）。
+    const q = field.value.trim().toLowerCase();
+    document.querySelectorAll(".factor-item").forEach((el) => {
+      const hit = !q || (el.textContent || "").toLowerCase().includes(q);
+      el.style.display = hit ? "" : "none";
+    });
   } else if (field.id && field.id.startsWith("factor-")) {
     const key = field.id.replace("factor-", "");
     if (key in state.factorDraft) {
@@ -506,7 +513,7 @@ document.addEventListener("keydown", (event) => {
     saveActivityFromForm();
     return;
   }
-  if (target.id && target.id.startsWith("factor-")) {
+  if (target.id && target.id.startsWith("factor-") && target.id !== "factor-search") {
     event.preventDefault();
     saveFactorFromForm();
     return;

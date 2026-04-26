@@ -692,6 +692,28 @@ test("Goals/Actions の値はリロードしても残る", async ({ page }) => {
   await expect(page.locator(".action-card")).toHaveCount(1);
 });
 
+test("factor 検索ボックスは入力で絞り込み Enter で原単位 form を submit しない", async ({ page }) => {
+  await page.goto("/#factors");
+  // 全 factor 表示（>=9 件）
+  const allCount = await page.locator(".factor-item").count();
+  expect(allCount).toBeGreaterThanOrEqual(9);
+
+  // 検索：「ガス」 → 都市ガスだけ表示
+  await page.locator("#factor-search").fill("ガス");
+  // visible な factor-item は 1 件
+  await expect(page.locator(".factor-item:visible")).toHaveCount(1);
+
+  // Enter を押しても toast が出ない（factor form に submit が走らない）
+  await page.locator("#factor-search").press("Enter");
+  await page.waitForTimeout(200);
+  await expect(page.locator(".toast-error")).toHaveCount(0);
+  await expect(page.locator(".toast-success")).toHaveCount(0);
+
+  // クリアすると全件戻る
+  await page.locator("#factor-search").fill("");
+  await expect(page.locator(".factor-item:visible")).toHaveCount(allCount);
+});
+
 test("factor 削除後に同じ ID で activity を保存しようとするとエラー", async ({ page }) => {
   // 9 件目の f-commute-car を削除（誰も使っていない seed factor）
   await page.goto("/#factors");
