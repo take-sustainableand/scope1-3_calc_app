@@ -651,7 +651,7 @@ function renderSidebar(route) {
       <a class="brand" href="#dashboard" aria-label="S&amp;Carbon home"><span class="logo-mark"></span><span>S&amp;Carbon</span></a>
       <nav class="nav">
         ${screens.map((screen) => `
-          <button class="nav-button ${route === screen.id ? "is-active" : ""}" data-route="${escapeAttr(screen.id)}">
+          <button class="nav-button ${route === screen.id ? "is-active" : ""}" data-route="${escapeAttr(screen.id)}" ${route === screen.id ? 'aria-current="page"' : ""}>
             ${icon(screen.icon)}<span>${escapeHTML(screen.label)}</span>
           </button>
         `).join("")}
@@ -774,19 +774,21 @@ function renderDashboard() {
         <div class="section-title"><h2>排出量の月次推移（直近6ヶ月）</h2></div>
         ${renderActualLineChart(monthly)}
       </article>
-      <article class="card card-pad">
-        <div class="section-title"><h2>カテゴリ別構成比</h2><button class="ghost-button" data-route="analytics">詳細を見る</button></div>
-        ${renderCategoryBreakdown()}
-      </article>
-      <article class="card card-pad">
-        <div class="section-title"><h2>最近のアクティビティ</h2><button class="ghost-button" data-route="data-list">すべて見る</button></div>
-        <div class="activity-list">
-          ${recent.length ? recent.map((activity) => {
-            const factor = getFactor(activity.factorId);
-            return `<div class="activity-row"><span><strong>${escapeHTML(factor?.name || "未設定データ")}</strong><small>${escapeHTML(activity.site || "拠点未設定")} / ${escapeHTML(activity.date)}</small></span><span class="badge green">${formatNumber(calcEmission(activity, factor))}</span></div>`;
-          }).join("") : `<p class="muted">フィルタ条件に一致する活動データはありません。</p>`}
-        </div>
-      </article>
+      <div class="dashboard-side">
+        <article class="card card-pad">
+          <div class="section-title"><h2>カテゴリ別構成比</h2><button class="ghost-button" data-route="analytics">詳細を見る</button></div>
+          ${renderCategoryBreakdown()}
+        </article>
+        <article class="card card-pad">
+          <div class="section-title"><h2>最近のアクティビティ</h2><button class="ghost-button" data-route="data-list">すべて見る</button></div>
+          <div class="activity-list">
+            ${recent.length ? recent.map((activity) => {
+              const factor = getFactor(activity.factorId);
+              return `<div class="activity-row"><span><strong>${escapeHTML(factor?.name || "未設定データ")}</strong><small>${escapeHTML(activity.site || "拠点未設定")} / ${escapeHTML(activity.date)}</small></span><span class="badge green">${formatNumber(calcEmission(activity, factor))} t-CO2e</span></div>`;
+            }).join("") : `<p class="muted">フィルタ条件に一致する活動データはありません。</p>`}
+          </div>
+        </article>
+      </div>
     </div>
     <div style="height:16px"></div>
     <article class="card card-pad">
@@ -795,6 +797,7 @@ function renderDashboard() {
         <button class="secondary-button quick-action" data-route="data-input">${icon("edit")} データ入力</button>
         <button class="secondary-button quick-action" data-route="factors">${icon("layers")} 原単位登録</button>
         <button class="secondary-button quick-action" data-route="reports">${icon("file")} レポート出力</button>
+        <button class="secondary-button quick-action" data-route="goals">${icon("target")} 目標を確認</button>
       </div>
     </article>
   `;
@@ -892,27 +895,54 @@ function renderCategoryBreakdown() {
 
 function renderHeroMetric(total, nested = false) {
   const tag = nested ? "div" : "article";
-  const className = nested ? "metric-card hero-card" : "card metric-card hero-card";
+  const baseClass = nested ? "metric-card hero-card" : "card metric-card hero-card span-12";
+  const goalProgress = currentGoalProgress();
+  const monthCount = monthEntriesCount();
   return `
-    <${tag} class="${className}">
-      <div>
-        <div class="metric-label">総排出量（CO2e）</div>
-        <div class="metric-value">${formatNumber(total)}<small>t-CO2e</small></div>
-      </div>
-      <div class="metric-foot">
-        <span>登録活動データ：${activities.length}件</span>
-        <span>登録原単位：${factors.length}件</span>
-        <span>集計期間：${escapeHTML(state.settings.period)}</span>
+    <${tag} class="${baseClass}">
+      <div class="hero-grid">
+        <div class="hero-cell">
+          <div class="metric-label">総排出量</div>
+          <div class="metric-value">${formatNumber(total)}<small>t-CO2e</small></div>
+          <div class="metric-foot"><span>集計期間：${escapeHTML(state.settings.period)}</span></div>
+        </div>
+        <div class="hero-cell">
+          <div class="metric-label">対目標進捗</div>
+          <div class="metric-value">${goalProgress.hasGoal ? goalProgress.pct : "—"}<small>${goalProgress.hasGoal ? "%" : "目標未登録"}</small></div>
+          ${goalProgress.hasGoal ? `<div class="hero-progress"><span style="width:${Math.min(goalProgress.pct, 100)}%"></span></div>` : `<div class="metric-foot"><span>「目標」画面で登録</span></div>`}
+        </div>
+        <div class="hero-cell">
+          <div class="metric-label">今月の入力</div>
+          <div class="metric-value">${formatNumber(monthCount)}<small>件</small></div>
+          <div class="metric-foot"><span>累計 ${activities.length} 件 / 原単位 ${factors.length} 件</span></div>
+        </div>
       </div>
     </${tag}>
   `;
+}
+
+function currentGoalProgress() {
+  if (!Array.isArray(goals) || goals.length === 0) return { hasGoal: false, pct: 0 };
+  const year = new Date().getFullYear();
+  const goal = goals.find((g) => Number(g.year) === year && (g.scope === "全Scope" || !g.scope))
+    || goals.find((g) => Number(g.year) === year);
+  if (!goal) return { hasGoal: false, pct: 0 };
+  const actual = goalActual(goal);
+  const target = Number(goal.targetTons) || 0;
+  if (target <= 0) return { hasGoal: false, pct: 0 };
+  return { hasGoal: true, pct: Math.round((actual / target) * 100) };
+}
+
+function monthEntriesCount() {
+  const ym = new Date().toISOString().slice(0, 7);
+  return activities.filter((a) => (a.date || "").startsWith(ym)).length;
 }
 
 function renderScopeMetric(scope, value) {
   const meta = scopeMeta[scope];
   const total = getScopeTotals().total;
   return `
-    <article class="card metric-card">
+    <article class="card metric-card span-4">
       <div>
         <div class="legend-row">
           <div>
@@ -1005,13 +1035,9 @@ function renderDataInput() {
         </div>
         <div style="height:16px"></div>
         <div class="calc-total">
-          <div class="card-pad" style="border:1px solid var(--line); border-radius:var(--radius);">
-            <p>CO2e 排出量（推定）</p>
-            <div id="calc-preview" class="calc-number">${formatNumber(calcDraft())}<small>t-CO2e</small></div>
-          </div>
-          <div class="card-pad" style="border:1px solid var(--line); border-radius:var(--radius);">
-            <p>算定式</p>
-            <strong id="calc-formula">${formatFormula(selected)}</strong>
+          <div>
+            <div class="metric-label">CO2e 排出量（推定）</div>
+            <div id="calc-preview" class="calc-formula">${renderFormulaHTML(selected, state.draft.amount, calcDraft())}</div>
           </div>
         </div>
         <div class="form-actions" style="display:flex; justify-content:flex-end; gap:10px; margin-top:18px">
@@ -1249,7 +1275,18 @@ function renderReports() {
     { type: "json", name: "状態スナップショット", desc: "factors / activities の完全バックアップ（JSON）" },
     { type: "remote-preview", name: "GitHub保存内容プレビュー", desc: "PUT予定のJSONをダウンロードして確認（JSON）" }
   ];
+  const period = state.settings.period || "全期間";
+  const site = state.settings.site || "全拠点";
   return `
+    <section class="report-cover">
+      <span class="report-cover-overline">Carbon Disclosure Report</span>
+      <h2>${escapeHTML(period)} レポート</h2>
+      <div class="report-cover-meta">
+        <span>拠点：<strong>${escapeHTML(site)}</strong></span>
+        <span>総排出量：<strong>${formatNumber(totals.total)} t-CO2e</strong></span>
+        <span>登録活動データ：<strong>${activities.length}</strong> 件</span>
+      </div>
+    </section>
     <div class="grid two">
       <section class="card card-pad">
         <div class="section-title">
@@ -1527,7 +1564,7 @@ function renderAlerts() {
       ${alerts.length ? `
         <div class="alert-list">
           ${alerts.map((alert) => `
-            <div class="alert-row">
+            <div class="alert-row" data-severity="${escapeAttr(alert.severity)}">
               <span>${icon("alert")}<span><strong>${escapeHTML(alert.title)}</strong><small>${escapeHTML(alert.detail)}</small></span></span>
               <span class="badge ${alert.severity}">${escapeHTML(alert.label)}</span>
             </div>
@@ -1603,7 +1640,8 @@ function renderSettings() {
       </section>
       <section class="card card-pad">
         <div class="section-title"><h2>個人アクセストークン</h2><span class="badge ${tokenSet ? "green" : "amber"}">${tokenSet ? "保存済み" : "未設定"}</span></div>
-        <p class="muted">Fine-grained token を推奨。対象リポジトリ・Contents read/write のみに限定してください。トークンはこのブラウザの localStorage にのみ保持され、リポジトリには絶対にコミットされません。</p>
+        <div class="settings-info">${icon("leaf")} このブラウザの localStorage にのみ保持され、リポジトリには絶対にコミットされません。</div>
+        <p class="muted">Fine-grained token を推奨。対象リポジトリ・Contents read/write のみに限定してください。</p>
         <label class="field"><span>GitHub Personal Access Token</span><input id="github-token" name="github-token" type="password" autocomplete="new-password" placeholder="${tokenSet ? "（保存済み・上書きする場合のみ入力）" : "ghp_xxx... または github_pat_xxx..."}"></label>
         <div class="form-actions" style="display:flex; gap:10px; margin-top:12px">
           <button class="primary-button" data-token-save>保存</button>
@@ -1738,14 +1776,26 @@ function calcDraft() {
 
 function updateCalcPreview() {
   const preview = document.querySelector("#calc-preview");
-  const formula = document.querySelector("#calc-formula");
-  if (preview) preview.innerHTML = `${formatNumber(calcDraft())}<small>t-CO2e</small>`;
-  if (formula) formula.textContent = formatFormula(getFactor(state.draft.factorId));
+  if (preview) {
+    const factor = getFactor(state.draft.factorId);
+    preview.innerHTML = renderFormulaHTML(factor, state.draft.amount, calcDraft());
+  }
 }
 
-function formatFormula(factor) {
-  if (!factor) return "活動量 x 原単位";
-  return `${formatNumber(Number(state.draft.amount || 0))} ${factor.unit} x ${factor.coefficient} t-CO2e/${factor.unit}`;
+function renderFormulaHTML(factor, amount, result) {
+  if (!factor) {
+    return `
+      <div class="calc-formula-line"><span>活動量 × 原単位</span></div>
+      <div class="calc-formula-line is-total"><span>—</span><span class="unit">t-CO2e</span></div>
+    `;
+  }
+  const amountNum = Number(amount || 0);
+  return `
+    <div class="calc-formula-line"><span>${escapeHTML(factor.name)}</span><span class="unit">${escapeHTML(String(factor.coefficient))} t-CO2e/${escapeHTML(factor.unit)}</span></div>
+    <div class="calc-formula-line is-op"><span>×</span><span>${formatNumber(amountNum)} ${escapeHTML(factor.unit)}</span></div>
+    <div class="calc-formula-rule"></div>
+    <div class="calc-formula-line is-total"><span>${formatNumber(result)}</span><span class="unit">t-CO2e</span></div>
+  `;
 }
 
 function saveActivityFromForm() {
