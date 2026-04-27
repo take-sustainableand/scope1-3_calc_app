@@ -1,16 +1,41 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-04-26T00:00:00+09:00",
+  "generatedAt": "2026-04-27T22:45:00+09:00",
   "factors": [
-    { "id": "f-electricity", "scope": "Scope 2", "name": "電力（日本・全国平均）", "category": "電力", "unit": "kWh", "coefficient": 0.000434, "source": "環境省 算定・報告・公表制度 R03年度実績代替値", "region": "日本", "year": "2023", "status": "公式" },
-    { "id": "f-citygas", "scope": "Scope 1", "name": "都市ガス（13A）", "category": "燃料", "unit": "m3", "coefficient": 0.00221, "source": "環境省 算定・報告・公表制度", "region": "日本", "year": "2023", "status": "公式" },
-    { "id": "f-lpg", "scope": "Scope 1", "name": "LPG（プロパン）", "category": "燃料", "unit": "kg", "coefficient": 0.003, "source": "環境省 算定・報告・公表制度", "region": "日本", "year": "2023", "status": "公式" },
-    { "id": "f-kerosene", "scope": "Scope 1", "name": "灯油", "category": "燃料", "unit": "L", "coefficient": 0.00249, "source": "環境省 算定・報告・公表制度", "region": "日本", "year": "2023", "status": "公式" },
-    { "id": "f-gasoline", "scope": "Scope 1", "name": "ガソリン", "category": "燃料", "unit": "L", "coefficient": 0.00232, "source": "環境省 算定・報告・公表制度", "region": "日本", "year": "2023", "status": "公式" },
-    { "id": "f-diesel", "scope": "Scope 1", "name": "軽油", "category": "燃料", "unit": "L", "coefficient": 0.00258, "source": "環境省 算定・報告・公表制度", "region": "日本", "year": "2023", "status": "公式" },
-    { "id": "f-commute-rail", "scope": "Scope 3", "name": "通勤（鉄道）", "category": "通勤", "unit": "人km", "coefficient": 0.0000196, "source": "国交省 旅客輸送統計（CO2排出原単位）", "region": "日本", "year": "2022", "status": "公式" },
-    { "id": "f-commute-bus", "scope": "Scope 3", "name": "通勤（路線バス）", "category": "通勤", "unit": "人km", "coefficient": 0.0000571, "source": "国交省 旅客輸送統計（CO2排出原単位）", "region": "日本", "year": "2022", "status": "公式" },
-    { "id": "f-commute-car", "scope": "Scope 3", "name": "通勤（自家用乗用車）", "category": "通勤", "unit": "人km", "coefficient": 0.000130, "source": "国交省 旅客輸送統計（CO2排出原単位）", "region": "日本", "year": "2022", "status": "公式" }
+    {"id":"f-electricity","scope":"Scope 2","name":"電力（日本・全国平均）","category":"電力","unit":"kWh","coefficient":0.000434,"source":"環境省 算定・報告・公表制度 R03年度実績代替値","region":"日本","year":"2023","status":"公式"},
+    {"id":"f-citygas","scope":"Scope 1","name":"都市ガス（13A）","category":"燃料","unit":"m3","coefficient":0.00221,"source":"環境省 算定・報告・公表制度","region":"日本","year":"2023","status":"公式"},
+    {"id":"f-lpg","scope":"Scope 1","name":"LPG（プロパン）","category":"燃料","unit":"kg","coefficient":0.003,"source":"環境省 算定・報告・公表制度","region":"日本","year":"2023","status":"公式"},
+    {"id":"f-kerosene","scope":"Scope 1","name":"灯油","category":"燃料","unit":"L","coefficient":0.00249,"source":"環境省 算定・報告・公表制度","region":"日本","year":"2023","status":"公式"},
+    {"id":"f-gasoline","scope":"Scope 1","name":"ガソリン","category":"燃料","unit":"L","coefficient":0.00232,"source":"環境省 算定・報告・公表制度","region":"日本","year":"2023","status":"公式"},
+    {"id":"f-diesel","scope":"Scope 1","name":"軽油","category":"燃料","unit":"L","coefficient":0.00258,"source":"環境省 算定・報告・公表制度","region":"日本","year":"2023","status":"公式"},
+    {"id":"f-commute-rail","scope":"Scope 3","name":"通勤（鉄道）","category":"通勤","unit":"人km","coefficient":0.0000196,"source":"国交省 旅客輸送統計（CO2排出原単位）","region":"日本","year":"2022","status":"公式"},
+    {"id":"f-commute-bus","scope":"Scope 3","name":"通勤（路線バス）","category":"通勤","unit":"人km","coefficient":0.0000571,"source":"国交省 旅客輸送統計（CO2排出原単位）","region":"日本","year":"2022","status":"公式"},
+    {"id":"f-commute-car","scope":"Scope 3","name":"通勤（自家用乗用車）","category":"通勤","unit":"人km","coefficient":0.00013,"source":"国交省 旅客輸送統計（CO2排出原単位）","region":"日本","year":"2022","status":"公式"}
   ],
-  "activities": []
+  "activities": [
+    {"id":"a-csv-1777297500000","factorId":"f-electricity","amount":617,"site":"自宅","supplier":"東京ガス株式会社","date":"2026-02-09","memo":""},
+    {"id":"a-csv-1777297500001","factorId":"f-electricity","amount":834,"site":"自宅","supplier":"東京ガス株式会社","date":"2026-01-09","memo":""},
+    {"id":"a-csv-1777297500002","factorId":"f-electricity","amount":777,"site":"自宅","supplier":"東京ガス株式会社","date":"2025-12-09","memo":""},
+    {"id":"a-csv-1777297500003","factorId":"f-electricity","amount":526,"site":"自宅","supplier":"東京ガス株式会社","date":"2025-11-09","memo":""},
+    {"id":"a-csv-1777297500004","factorId":"f-electricity","amount":320,"site":"自宅","supplier":"東京ガス株式会社","date":"2025-10-09","memo":""},
+    {"id":"a-csv-1777297500005","factorId":"f-electricity","amount":202,"site":"自宅","supplier":"東京ガス株式会社","date":"2025-09-09","memo":""},
+    {"id":"a-csv-1777297500006","factorId":"f-electricity","amount":323,"site":"自宅","supplier":"東京ガス株式会社","date":"2025-08-09","memo":""},
+    {"id":"a-csv-1777297500007","factorId":"f-electricity","amount":288,"site":"自宅","supplier":"東京ガス株式会社","date":"2025-07-09","memo":""},
+    {"id":"a-csv-1777297500008","factorId":"f-electricity","amount":230,"site":"自宅","supplier":"東京ガス株式会社","date":"2025-06-09","memo":""},
+    {"id":"a-csv-1777297500009","factorId":"f-electricity","amount":226,"site":"自宅","supplier":"東京ガス株式会社","date":"2025-05-09","memo":""},
+    {"id":"a-csv-1777297500010","factorId":"f-electricity","amount":458,"site":"自宅","supplier":"東京ガス株式会社","date":"2025-04-09","memo":""},
+    {"id":"a-csv-1777297500011","factorId":"f-electricity","amount":827,"site":"自宅","supplier":"東京ガス株式会社","date":"2025-03-09","memo":""},
+    {"id":"a-csv-1777297500012","factorId":"f-citygas","amount":56,"site":"自宅","supplier":"東京ガス株式会社","date":"2026-03-18","memo":""},
+    {"id":"a-csv-1777297500013","factorId":"f-citygas","amount":59,"site":"自宅","supplier":"東京ガス株式会社","date":"2026-02-17","memo":""},
+    {"id":"a-csv-1777297500014","factorId":"f-citygas","amount":57,"site":"自宅","supplier":"東京ガス株式会社","date":"2026-01-20","memo":""},
+    {"id":"a-csv-1777297500015","factorId":"f-citygas","amount":67,"site":"自宅","supplier":"東京ガス株式会社","date":"2025-12-16","memo":""},
+    {"id":"a-csv-1777297500016","factorId":"f-citygas","amount":43,"site":"自宅","supplier":"東京ガス株式会社","date":"2025-11-18","memo":""},
+    {"id":"a-csv-1777297500017","factorId":"f-citygas","amount":34,"site":"自宅","supplier":"東京ガス株式会社","date":"2025-10-17","memo":""},
+    {"id":"a-csv-1777297500018","factorId":"f-citygas","amount":23,"site":"自宅","supplier":"東京ガス株式会社","date":"2025-09-17","memo":""},
+    {"id":"a-csv-1777297500019","factorId":"f-citygas","amount":21,"site":"自宅","supplier":"東京ガス株式会社","date":"2025-08-19","memo":""},
+    {"id":"a-csv-1777297500020","factorId":"f-citygas","amount":21,"site":"自宅","supplier":"東京ガス株式会社","date":"2025-07-17","memo":""},
+    {"id":"a-csv-1777297500021","factorId":"f-citygas","amount":25,"site":"自宅","supplier":"東京ガス株式会社","date":"2025-06-18","memo":""},
+    {"id":"a-csv-1777297500022","factorId":"f-citygas","amount":29,"site":"自宅","supplier":"東京ガス株式会社","date":"2025-05-20","memo":""},
+    {"id":"a-csv-1777297500023","factorId":"f-citygas","amount":41,"site":"自宅","supplier":"東京ガス株式会社","date":"2025-04-17","memo":""}
+  ]
 }
