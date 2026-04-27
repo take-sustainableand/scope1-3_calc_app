@@ -2434,9 +2434,9 @@ function mobileLead(route) {
 
 function logoMark() {
   return `<svg class="logo-mark" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">`
-       + `<path class="logo-mark__leaf" d="M27 4 C18 5 10 8 6 14 C3 18 3 23 6 27 C9 30 15 30 20 27 C26 23 28 16 27 4 Z"/>`
-       + `<path class="logo-mark__vein-main" d="M27 4 C20 11 14 18 7 27" fill="none" stroke-linecap="round"/>`
-       + `<path class="logo-mark__vein-side" d="M22 8 L17 9 M19 12 L13 13 M16 16 L10 17 M14 20 L9 22" fill="none" stroke-linecap="round"/>`
+       + `<defs><linearGradient id="logo-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#1F3A1A"/><stop offset="100%" stop-color="#3D6634"/></linearGradient></defs>`
+       + `<rect width="32" height="32" rx="7" ry="7" fill="url(#logo-bg)"/>`
+       + `<text x="16" y="21" font-family="Georgia, 'Hiragino Mincho ProN', serif" font-size="14" font-weight="500" fill="#EEF4EC" text-anchor="middle" letter-spacing="-0.5">CO<tspan font-size="9" dy="3">2</tspan></text>`
        + `</svg>`;
 }
 

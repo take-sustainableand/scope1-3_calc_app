@@ -242,21 +242,6 @@ a:focus-visible {
   flex: 0 0 auto;
 }
 
-.logo-mark__leaf {
-  fill: var(--moss-700);
-}
-
-.logo-mark__vein-main {
-  stroke: var(--moss-50);
-  stroke-width: 1.4;
-}
-
-.logo-mark__vein-side {
-  stroke: var(--moss-300);
-  stroke-width: 1;
-  opacity: 0.85;
-}
-
 .nav {
   display: grid;
   gap: 2px;
