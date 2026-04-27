@@ -236,22 +236,25 @@ a:focus-visible {
 }
 
 .logo-mark {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   display: inline-block;
   flex: 0 0 auto;
-  overflow: visible;
 }
 
-.logo-mark__stem {
-  stroke: var(--moss-700);
-  stroke-width: 2.6;
+.logo-mark__leaf {
+  fill: var(--moss-700);
 }
 
-.logo-mark__veins {
+.logo-mark__vein-main {
+  stroke: var(--moss-50);
+  stroke-width: 1.4;
+}
+
+.logo-mark__vein-side {
   stroke: var(--moss-300);
-  stroke-width: 1.1;
-  opacity: 0.95;
+  stroke-width: 1;
+  opacity: 0.85;
 }
 
 .nav {
