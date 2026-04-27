@@ -648,7 +648,7 @@ function deferRender() {
 function renderSidebar(route) {
   return `
     <aside class="sidebar" aria-label="メインナビゲーション">
-      <a class="brand" href="#dashboard" aria-label="S&amp;Carbon home"><span class="logo-mark"></span><span>S&amp;Carbon</span></a>
+      <a class="brand" href="#dashboard" aria-label="S&amp;Carbon home">${logoMark()}<span>S&amp;Carbon</span></a>
       <nav class="nav">
         ${screens.map((screen) => `
           <button class="nav-button ${route === screen.id ? "is-active" : ""}" data-route="${escapeAttr(screen.id)}" ${route === screen.id ? 'aria-current="page"' : ""}>
@@ -702,7 +702,7 @@ function periodSuggestions() {
 function renderMobileHeader(screen) {
   return `
     <header class="mobile-header">
-      <a class="brand" href="#dashboard"><span class="logo-mark"></span><span>S&amp;Carbon</span></a>
+      <a class="brand" href="#dashboard">${logoMark()}<span>S&amp;Carbon</span></a>
       <div style="display:flex; gap:8px;">
         <div class="avatar" aria-label="アカウント">T</div>
       </div>
@@ -2430,6 +2430,13 @@ function mobileLead(route) {
     settings: "アプリの表示と保存先を設定します"
   };
   return leads[route] || "";
+}
+
+function logoMark() {
+  return `<svg class="logo-mark" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">`
+       + `<path class="logo-mark__stem" d="M24 7 C22 5 16 4 12 5 C7 6 5 9 5 12 C5 15 8 17 13 17.5 C18 18 22 19 22 22 C22 25 19 27 14 27 C10 27 7 25 6 22" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`
+       + `<path class="logo-mark__veins" d="M14 5 L12 1 M16 17 L20 21 M14 27 L16 31" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`
+       + `</svg>`;
 }
 
 function icon(name) {
