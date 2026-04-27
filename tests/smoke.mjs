@@ -56,7 +56,16 @@ check("seed に通勤(鉄道/路線バス/自家用乗用車)が入っている"
 
 // data/scarbon-state.json も同等の seed
 check("JSON に factors が 9件以上ある", Array.isArray(stateJson.factors) && stateJson.factors.length >= 9);
-check("JSON の activities は空", Array.isArray(stateJson.activities) && stateJson.activities.length === 0);
+check("JSON の activities が ActivityRecord 形式（factorId が factors を参照）",
+  Array.isArray(stateJson.activities) &&
+  stateJson.activities.every((a) =>
+    typeof a.id === "string" && a.id.length > 0 &&
+    typeof a.factorId === "string" && a.factorId.length > 0 &&
+    typeof a.amount === "number" && Number.isFinite(a.amount) &&
+    typeof a.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(a.date)
+  ) &&
+  stateJson.activities.every((a) => stateJson.factors.some((f) => f.id === a.factorId))
+);
 check("JSON に通勤(自家用乗用車)係数 0.000130 が含まれる", stateJson.factors.some((f) => f.id === "f-commute-car" && f.coefficient === 0.000130));
 check("JSON に LPG (kg) が含まれる", stateJson.factors.some((f) => f.id === "f-lpg" && f.unit === "kg"));
 check("JSON に灯油 (L, 0.00249) が含まれる", stateJson.factors.some((f) => f.id === "f-kerosene" && f.unit === "L" && f.coefficient === 0.00249));
